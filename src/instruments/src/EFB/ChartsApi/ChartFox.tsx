@@ -13,6 +13,14 @@ export type ChartFoxAirportCharts = {
     reference: ChartFoxChart[],
 }
 
+export const emptyChartFoxCharts = {
+    arrival: [],
+    approach: [],
+    airport: [],
+    departure: [],
+    reference: [],
+};
+
 export default class ChartFoxClient {
     private static token = process.env.CHARTFOX_SECRET;
 
@@ -81,6 +89,8 @@ export default class ChartFoxClient {
                     };
                 }
             }
+        } else {
+            console.log('Insufficient .env file');
         }
 
         return {

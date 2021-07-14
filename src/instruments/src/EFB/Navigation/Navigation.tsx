@@ -10,7 +10,7 @@ import NavigraphClient, {
     NavigraphContext,
     useNavigraph,
 } from '../ChartsApi/Navigraph';
-import ChartFoxClient, { ChartFoxAirportCharts, ChartFoxChart } from '../ChartsApi/ChartFox';
+import ChartFoxClient, { ChartFoxAirportCharts, ChartFoxChart, emptyChartFoxCharts } from '../ChartsApi/ChartFox';
 import navigraphLogo from '../Assets/navigraph-logo.svg';
 import { usePersistentProperty } from '../../Common/persistence';
 import SimpleInput from '../Components/Form/SimpleInput/SimpleInput';
@@ -349,8 +349,13 @@ const ChartsUi = (props: ChartsUiProps) => {
 
     useEffect(() => {
         if (props.icao.length <= 3) {
-            setAirportInfo({ name: '' });
-            props.setCharts(emptyNavigraphCharts);
+            if (props.enableNavigraph) {
+                setAirportInfo({ name: '' });
+                props.setCharts(emptyNavigraphCharts);
+            } else {
+                setAirportInfo({ name: 'ChartFox' });
+                props.setCharts(emptyChartFoxCharts);
+            }
         }
     }, [props.icao]);
 
@@ -363,11 +368,21 @@ const ChartsUi = (props: ChartsUiProps) => {
                 { name: 'SID', charts: props.charts.departure },
                 { name: 'REF', charts: props.charts.reference },
             ]);
+        } else {
+            setOrganizedCharts([
+                { name: 'STAR', charts: props.charts.arrival },
+                { name: 'APP', charts: props.charts.approach, bundleRunways: true },
+                { name: 'TAXI', charts: props.charts.airport },
+                { name: 'SID', charts: props.charts.departure },
+                { name: 'REF', charts: props.charts.reference },
+            ]);
         }
     }, [props.charts]);
 
     useEffect(() => {
         if (props.enableNavigraph) {
+            setSelectedTab(organizedCharts[0]);
+        } else {
             setSelectedTab(organizedCharts[0]);
         }
     }, [organizedCharts]);
@@ -404,6 +419,7 @@ const ChartsUi = (props: ChartsUiProps) => {
                     }
                 });
             } else {
+                console.log('get chartfox charts');
                 props.chartFox.getChartList(newValue).then((r) => props.setCharts(r));
             }
         }
@@ -580,7 +596,7 @@ const ChartFoxNav = (props: ChartsUiProps) => (
 const Navigation = () => {
     const navigraph = useContext(NavigraphContext);
 
-    const [enableNavigraph] = useState<boolean>(true);
+    const [enableNavigraph] = useState<boolean>(false);
     const [chartFox] = useState(() => new ChartFoxClient());
     const [icao, setIcao] = useState<string>('');
     const [charts, setCharts] = useState<Charts>({
