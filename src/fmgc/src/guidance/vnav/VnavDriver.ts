@@ -9,6 +9,7 @@ import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
 import { ClimbProfileBuilderResult } from './climb/ClimbProfileBuilderResult';
+import { Fmgc } from '../GuidanceController';
 
 export class VnavDriver implements GuidanceComponent {
     currentClimbProfile: ClimbProfileBuilderResult;
@@ -16,6 +17,8 @@ export class VnavDriver implements GuidanceComponent {
     currentDescentProfile: TheoreticalDescentPathCharacteristics
 
     currentApproachProfile: DecelPathCharacteristics;
+
+    constructor(private fmgc: Fmgc) { }
 
     acceptNewMultipleLegGeometry(geometry: Geometry) {
         this.computeVerticalProfile(geometry);
@@ -32,7 +35,8 @@ export class VnavDriver implements GuidanceComponent {
     private computeVerticalProfile(geometry: Geometry) {
         if (geometry.legs.size > 0) {
             if (VnavConfig.VNAV_CALCULATE_CLIMB_PROFILE) {
-                this.currentClimbProfile = ClimbPathBuilder.computeClimbPath(geometry);
+                this.currentClimbProfile = ClimbPathBuilder.computeClimbPath(geometry, this.fmgc);
+                console.log(this.currentClimbProfile);
             }
             this.currentApproachProfile = DecelPathBuilder.computeDecelPath(geometry);
             this.currentDescentProfile = DescentBuilder.computeDescentPath(geometry, this.currentApproachProfile);

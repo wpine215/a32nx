@@ -380,6 +380,15 @@ const SymbolMarker: FC<SymbolMarkerProps> = memo(({ ident, x, y, type, constrain
                 <text x={1.5} y={2} className="Magenta shadow" strokeWidth={1} textAnchor="middle" dominantBaseline="middle" fontSize={22}>D</text>
             </>,
         );
+    } else if (type & (NdSymbolTypeFlags.PwpTopOfClimb)) {
+        showIdent = false;
+        elements.push(
+                <>
+                    <path d="M 0, 12.5 l l 12, -12 h 15.5 m -4, -4 l 4, 4 l -4, 4" strokeWidth = { 1.8} className = "shadow" />
+
+                    <path d="M 0, 12.5 l l 12, -12 h 15.5 m -4, -4 l 4, 4 l -4, 4" strokeWidth = { 1.5} className = "Cyan" />
+                </>,
+            );
     }
 
     if (showIdent) {
