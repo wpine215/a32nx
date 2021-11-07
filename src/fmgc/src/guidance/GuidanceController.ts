@@ -15,6 +15,7 @@ export interface Fmgc {
     getFOB(): number;
     getV2Speed(): number;
     getTropoPause(): number;
+    getManagedClimbSpeed(): number;
 }
 
 export class GuidanceController {

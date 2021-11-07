@@ -12,7 +12,7 @@ export const VnavConfig = {
     /**
      * Whether to calculate climb profile
      */
-    VNAV_CALCULATE_CLIMB_PROFILE: true,
+    VNAV_CALCULATE_CLIMB_PROFILE: false,
 
     /**
      * Whether to emit ToD pseudo waypoint

@@ -4125,6 +4125,10 @@ class FMCMainDisplay extends BaseAirliners {
     getTropoPause() {
         return this.tropo;
     }
+
+    getManagedClimbSpeed() {
+        return this.managedSpeedClimb;
+    }
 }
 
 FMCMainDisplay.clrValue = "\xa0\xa0\xa0\xa0\xa0CLR";
