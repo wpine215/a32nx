@@ -1,27 +1,12 @@
 import { Geometry } from '@fmgc/guidance/Geometry';
 import { Predictions, StepResults } from '../Predictions';
-import { ClimbProfileBuilderResult } from './ClimbProfileBuilderResult';
+import { ClimbProfileBuilderResult, VerticalCheckpoint, VerticalCheckpointReason } from './ClimbProfileBuilderResult';
 import { Common, FlapConf } from '../common';
 import { Fmgc } from '@fmgc/guidance/GuidanceController';
 import { EngineModel } from '../EngineModel';
 import { TFLeg } from '@fmgc/guidance/lnav/legs/TF';
 import { RFLeg } from '@fmgc/guidance/lnav/legs/RF';
 import { AltitudeConstraint } from '@fmgc/guidance/lnav/legs';
-
-enum VerticalCheckpointReason {
-    Liftoff,
-    ThrustReductionAltitude,
-    AccelerationAltitude,
-    TopOfClimb,
-    AtmosphericConditions
-}
-
-interface VerticalCheckpoint {
-    reason: VerticalCheckpointReason,
-    distanceFromEnd: number,
-    altitude: number,
-    predictedN1: number,
-}
 
 export class ClimbPathBuilder {
     private static TONS_TO_POUNDS = 2240;
@@ -30,6 +15,8 @@ export class ClimbPathBuilder {
     private accelerationAltitude: number;
     private thrustReductionAltitude: number;
     private cruiseAltitude: number;
+    private climbSpeedLimit: number;
+    private climbSpeedLimitAltitude: number;
 
     constructor(private fmgc: Fmgc) { }
 
@@ -40,6 +27,8 @@ export class ClimbPathBuilder {
         this.accelerationAltitude = SimVar.GetSimVarValue('L:AIRLINER_ACC_ALT', 'number');
         this.thrustReductionAltitude = SimVar.GetSimVarValue('L:AIRLINER_THR_RED_ALT', 'number');
         this.cruiseAltitude = SimVar.GetSimVarValue('L:AIRLINER_CRUISE_ALTITUDE', 'number');
+        this.climbSpeedLimit = 250; // TODO: Make dynamic
+        this.climbSpeedLimitAltitude = 10000; // TODO: Make dynamic
     }
 
     computeClimbPath(geometry: Geometry): ClimbProfileBuilderResult {
@@ -47,112 +36,66 @@ export class ClimbPathBuilder {
 
         const totalDistance = this.computeTotalFlightPlanDistance(geometry);
 
-        const takeoffRollDistance = this.computeTakeOffRollDistance();
-        checkpoints.push({
-            reason: VerticalCheckpointReason.Liftoff,
-            distanceFromEnd: totalDistance - takeoffRollDistance,
-            altitude: this.airfieldElevation,
-            predictedN1: SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TOGA', 'Percent'),
-        });
+        this.addTakeoffRollCheckpoint(checkpoints, this.fmgc.getFOB() * ClimbPathBuilder.TONS_TO_POUNDS);
+        this.addTakeoffStepCheckpoint(checkpoints, this.airfieldElevation, this.thrustReductionAltitude);
+        this.addAccelerationAltitudeStep(checkpoints, this.thrustReductionAltitude, this.accelerationAltitude, this.fmgc.getV2Speed() + 10);
+        this.addClimbSteps(checkpoints);
 
-        let totalDistanceForClb = takeoffRollDistance;
-        let fuelOnBoard = this.fmgc.getFOB() * ClimbPathBuilder.TONS_TO_POUNDS;
+        this.printAltitudePredictionsAtAltitudes(geometry, [...checkpoints].sort((a, b) => a.distanceFromStart - b.distanceFromStart));
 
-        const { distanceTraveled: distanceTraveledToThrustReduction, fuelBurned: fuelBurnedToThrustReduction } = this.computeTakeoffStepPrediction(this.airfieldElevation, this.thrustReductionAltitude, fuelOnBoard);
-
-        fuelOnBoard -= fuelBurnedToThrustReduction;
-        totalDistanceForClb += distanceTraveledToThrustReduction;
-        checkpoints.push({
-            reason: VerticalCheckpointReason.ThrustReductionAltitude,
-            distanceFromEnd: totalDistance - totalDistanceForClb,
-            altitude: this.thrustReductionAltitude,
-            predictedN1: SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TOGA', 'Percent'),
-        });
-
-        const { predictedN1, distanceTraveled: distanceTraveledToAcceleration, fuelBurned: fuelBurnedToAcceleration } = this.computeClimbSegmentPrediction(this.thrustReductionAltitude, this.accelerationAltitude, this.fmgc.getV2Speed() + 10, fuelOnBoard);
-
-        fuelOnBoard -= fuelBurnedToAcceleration;
-        totalDistanceForClb += distanceTraveledToAcceleration
-        checkpoints.push({
-            reason: VerticalCheckpointReason.AccelerationAltitude,
-            distanceFromEnd: totalDistance - totalDistanceForClb,
-            altitude: this.accelerationAltitude,
-            predictedN1: predictedN1,
-        });
-
-        for (let altitude = this.accelerationAltitude; altitude < this.cruiseAltitude; altitude = Math.min(altitude + 1000, this.cruiseAltitude)) {
-            const climbSpeed = altitude > 10000 ? this.fmgc.getManagedClimbSpeed() : 250;
-            const targetAltitude = Math.min(altitude + 1000, this.cruiseAltitude);
-
-            const { predictedN1: commandedN1, distanceTraveled: distanceTraveledSegment, fuelBurned } = this.computeClimbSegmentPrediction(altitude, targetAltitude, climbSpeed, fuelOnBoard);
-
-            totalDistanceForClb += distanceTraveledSegment;
-            fuelOnBoard -= fuelBurned;
-
-            checkpoints.push({
-                reason: targetAltitude === this.cruiseAltitude ? VerticalCheckpointReason.TopOfClimb : VerticalCheckpointReason.AtmosphericConditions,
-                distanceFromEnd: totalDistance - totalDistanceForClb,
-                altitude: targetAltitude,
-                predictedN1: commandedN1,
-            })
-        }
-
-        this.printAltitudePredictionsAtAltitudes(geometry, checkpoints.sort((a, b) => b.distanceFromEnd - a.distanceFromEnd));
-        console.log(checkpoints);
-
-        const distanceToTopOfClimb = takeoffRollDistance + distanceTraveledToThrustReduction + totalDistanceForClb;
-        const distanceToTopOfClimbFromEnd = totalDistance - distanceToTopOfClimb
-
+        const distanceToTopOfClimbFromEnd = totalDistance - checkpoints[checkpoints.length - 1].distanceFromStart;
         this.printDistanceFromTocToClosestWaypoint(geometry, distanceToTopOfClimbFromEnd)
 
         return {
-            distanceToRotation: takeoffRollDistance,
-            distanceToAccelerationAltitude: takeoffRollDistance + distanceTraveledToThrustReduction,
-            distanceToTopOfClimb,
-            distanceToTopOfClimbFromEnd
+            checkpoints,
+            distanceToTopOfClimbFromEnd,
         }
     }
 
-    private printAltitudePredictionsAtAltitudes(geometry: Geometry, sortedCheckpoints: VerticalCheckpoint[]): number {
-        let totalDistanceFromEnd = 0;
-        console.log(sortedCheckpoints);
+    private printAltitudePredictionsAtAltitudes(geometry: Geometry, sortedCheckpoints: VerticalCheckpoint[]) {
+        let totalDistance = this.computeTotalFlightPlanDistance(geometry);
 
         for (const [i, leg] of geometry.legs.entries()) {
-            totalDistanceFromEnd += leg.distance;
+            totalDistance -= leg.distance;
 
             if (leg instanceof TFLeg || leg instanceof RFLeg) {
-                const predictedAltitude = this.interpolateAltitude(totalDistanceFromEnd, sortedCheckpoints);
-                console.log({ totalDistanceFromEnd, 'waypoint': leg.from.ident, predictedAltitude, constraint: leg.altitudeConstraint })
+                const predictedAltitude = this.interpolateAltitude(totalDistance, sortedCheckpoints);
+                console.log({ totalDistance, 'waypoint': leg.from.ident, predictedAltitude, constraint: leg.altitudeConstraint })
             } else {
                 console.warn(`[FMS/VNAV] Invalid leg when printing flightplan`)
             }
         }
-
-        return totalDistanceFromEnd;
     }
 
-    private interpolateAltitude(distanceFromEnd: number, sortedCheckpoints: VerticalCheckpoint[]): number {
-        if (distanceFromEnd > sortedCheckpoints[0].distanceFromEnd) {
+    private interpolateAltitude(distanceFromStart: number, sortedCheckpoints: VerticalCheckpoint[]): number {
+        if (distanceFromStart < sortedCheckpoints[0].distanceFromStart) {
             return sortedCheckpoints[0].altitude;
         }
 
         for (let i = 0; i < sortedCheckpoints.length - 1; i++) {
-            if (distanceFromEnd <= sortedCheckpoints[i].distanceFromEnd && distanceFromEnd > sortedCheckpoints[i + 1].distanceFromEnd) {
-                return sortedCheckpoints[i + 1].altitude - (distanceFromEnd - sortedCheckpoints[i + 1].distanceFromEnd) * (sortedCheckpoints[i + 1].altitude - sortedCheckpoints[i].altitude) / (sortedCheckpoints[i].distanceFromEnd - sortedCheckpoints[i + 1].distanceFromEnd);
+            if (distanceFromStart > sortedCheckpoints[i].distanceFromStart && distanceFromStart < sortedCheckpoints[i + 1].distanceFromStart) {
+                return sortedCheckpoints[i].altitude + (distanceFromStart - sortedCheckpoints[i].distanceFromStart) * (sortedCheckpoints[i + 1].altitude - sortedCheckpoints[i].altitude) / (sortedCheckpoints[i + 1].distanceFromStart - sortedCheckpoints[i].distanceFromStart);
             }
         }
 
         return sortedCheckpoints[sortedCheckpoints.length - 1].altitude;
     }
 
-    private computeTakeoffStepPrediction(starting_altitude: number, accelerationAltitude: number, fuelWeight: number): StepResults & { predictedN1: number } {
-        const midwayAltitudeSrs = (accelerationAltitude + starting_altitude) / 2;
-
+    private addTakeoffStepCheckpoint(checkpoints: VerticalCheckpoint[], groundAltitude: number, thrustReductionAltitude: number) {
+        const midwayAltitudeSrs = (thrustReductionAltitude + groundAltitude) / 2;
         const predictedN1 = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TOGA', 'Percent');
-
         const machSrs = this.computeMachFromCas(midwayAltitudeSrs, this.isaDeviation(), this.fmgc.getV2Speed() + 10);
+        const remainingFuelOnBoard = checkpoints[checkpoints.length - 1].remainingFuelOnBoard
 
-        return { predictedN1, ...Predictions.altitudeStep(starting_altitude, accelerationAltitude - starting_altitude, this.fmgc.getV2Speed() + 10, machSrs, predictedN1, this.fmgc.getZeroFuelWeight() * ClimbPathBuilder.TONS_TO_POUNDS, fuelWeight, 0, this.isaDeviation(), this.fmgc.getTropoPause(), false, FlapConf.CONF_1) };
+        const { fuelBurned, distanceTraveled } = Predictions.altitudeStep(groundAltitude, thrustReductionAltitude - groundAltitude, this.fmgc.getV2Speed() + 10, machSrs, predictedN1, this.fmgc.getZeroFuelWeight() * ClimbPathBuilder.TONS_TO_POUNDS, remainingFuelOnBoard, 0, this.isaDeviation(), this.fmgc.getTropoPause(), false, FlapConf.CONF_1)
+
+        checkpoints.push({
+            reason: VerticalCheckpointReason.ThrustReductionAltitude,
+            distanceFromStart: checkpoints[checkpoints.length - 1].distanceFromStart + distanceTraveled,
+            altitude: this.thrustReductionAltitude,
+            predictedN1,
+            remainingFuelOnBoard: remainingFuelOnBoard - fuelBurned,
+        });
     }
 
     private printDistanceFromTocToClosestWaypoint(geometry: Geometry, distanceToTopOfClimbFromEnd: number) {
@@ -186,7 +129,39 @@ export class ClimbPathBuilder {
 
         return Common.CAStoMach(speed, deltaSrs);
     }
-    private computeClimbSegmentPrediction(startingAltitude: number, targetAltitude: number, climbSpeed: number, fob: number): StepResults & { predictedN1: number } {
+
+    private addAccelerationAltitudeStep(checkpoints: VerticalCheckpoint[], startingAltitude: number, targetAltitude: number, climbSpeed: number) {
+        const remainingFuelOnBoard = checkpoints[checkpoints.length - 1].remainingFuelOnBoard;
+        const { predictedN1, fuelBurned, distanceTraveled } = this.computeClimbSegmentPrediction(startingAltitude, targetAltitude, climbSpeed, remainingFuelOnBoard);
+
+        checkpoints.push({
+            reason: VerticalCheckpointReason.AccelerationAltitude,
+            distanceFromStart: checkpoints[checkpoints.length - 1].distanceFromStart + distanceTraveled,
+            altitude: this.accelerationAltitude,
+            predictedN1: predictedN1,
+            remainingFuelOnBoard: remainingFuelOnBoard - fuelBurned,
+        });
+    }
+
+    private addClimbSteps(checkpoints: VerticalCheckpoint[]) {
+        for (let altitude = this.accelerationAltitude; altitude < this.cruiseAltitude; altitude = Math.min(altitude + 1000, this.cruiseAltitude)) {
+            const climbSpeed = altitude > this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit;
+            const targetAltitude = Math.min(altitude + 1000, this.cruiseAltitude);
+            const remainingFuelOnBoard = checkpoints[checkpoints.length - 1].remainingFuelOnBoard
+
+            const { predictedN1, distanceTraveled, fuelBurned } = this.computeClimbSegmentPrediction(altitude, targetAltitude, climbSpeed, remainingFuelOnBoard);
+
+            checkpoints.push({
+                reason: targetAltitude === this.cruiseAltitude ? VerticalCheckpointReason.TopOfClimb : VerticalCheckpointReason.AtmosphericConditions,
+                distanceFromStart: checkpoints[checkpoints.length - 1].distanceFromStart + distanceTraveled,
+                altitude: targetAltitude,
+                predictedN1,
+                remainingFuelOnBoard: remainingFuelOnBoard - fuelBurned
+            })
+        }
+    }
+
+    private computeClimbSegmentPrediction(startingAltitude: number, targetAltitude: number, climbSpeed: number, remainingFuelOnBoard: number): StepResults & { predictedN1: number } {
         const midwayAltitudeClimb = (startingAltitude + targetAltitude) / 2;
         const isaDeviation = this.isaDeviation();
 
@@ -194,7 +169,7 @@ export class ClimbPathBuilder {
         const estimatedTat = this.totalAirTemperatureFromMach(midwayAltitudeClimb, machClimb, isaDeviation)
         const predictedN1 = this.getClimbThrustN1Limit(estimatedTat, midwayAltitudeClimb);
 
-        return { predictedN1 , ...Predictions.altitudeStep(startingAltitude, targetAltitude - startingAltitude, climbSpeed, machClimb, predictedN1, this.fmgc.getZeroFuelWeight() * ClimbPathBuilder.TONS_TO_POUNDS, fob, 0, this.isaDeviation(), this.fmgc.getTropoPause()) };
+        return { predictedN1, ...Predictions.altitudeStep(startingAltitude, targetAltitude - startingAltitude, climbSpeed, machClimb, predictedN1, this.fmgc.getZeroFuelWeight() * ClimbPathBuilder.TONS_TO_POUNDS, remainingFuelOnBoard, 0, this.isaDeviation(), this.fmgc.getTropoPause()) };
     }
 
     private computeTotalFlightPlanDistance(geometry: Geometry): number {
@@ -217,8 +192,13 @@ export class ClimbPathBuilder {
         return EngineModel.tableInterpolation(EngineModel.maxClimbThrustTableLeap, tat, pressureAltitude);
     }
 
-    computeTakeOffRollDistance(): number {
-        // TODO
-        return 0.6;
+    private addTakeoffRollCheckpoint(checkpoints: VerticalCheckpoint[], remainingFuelOnBoard: number) {
+        checkpoints.push({
+            reason: VerticalCheckpointReason.Liftoff,
+            distanceFromStart: 0.6,
+            altitude: this.airfieldElevation,
+            predictedN1: SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TOGA', 'Percent'),
+            remainingFuelOnBoard,
+        });
     }
 }
