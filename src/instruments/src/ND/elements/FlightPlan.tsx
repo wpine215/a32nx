@@ -384,9 +384,9 @@ const SymbolMarker: FC<SymbolMarkerProps> = memo(({ ident, x, y, type, constrain
         showIdent = false;
         elements.push(
                 <>
-                    <path d="M 0, 12.5 l l 12, -12 h 15.5 m -4, -4 l 4, 4 l -4, 4" strokeWidth = { 1.8} className = "shadow" />
+                    <path d="M 0, 12.5 l 12, -12 h 15.5 m -4, -4 l 4, 4 l -4, 4" strokeWidth={1.8} className="shadow" />
 
-                    <path d="M 0, 12.5 l l 12, -12 h 15.5 m -4, -4 l 4, 4 l -4, 4" strokeWidth = { 1.5} className = "Cyan" />
+                    <path d="M 0, 12.5 l 12, -12 h 15.5 m -4, -4 l 4, 4 l -4, 4" strokeWidth={1.5} className="Cyan" />
                 </>,
             );
     }
