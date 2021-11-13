@@ -3,7 +3,8 @@ export enum VerticalCheckpointReason {
     ThrustReductionAltitude,
     AccelerationAltitude,
     TopOfClimb,
-    AtmosphericConditions
+    AtmosphericConditions,
+    PresentPosition,
 }
 
 export interface VerticalCheckpoint {
