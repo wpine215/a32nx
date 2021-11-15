@@ -10,6 +10,7 @@ import { GuidanceComponent } from '../GuidanceComponent';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
 import { ClimbProfileBuilderResult } from './climb/ClimbProfileBuilderResult';
 import { Fmgc } from '../GuidanceController';
+import { FlightPlanManager } from '@fmgc/flightplanning/FlightPlanManager';
 
 export class VnavDriver implements GuidanceComponent {
     climbPathBuilder: ClimbPathBuilder;
@@ -19,8 +20,8 @@ export class VnavDriver implements GuidanceComponent {
 
     currentApproachProfile: DecelPathCharacteristics;
 
-    constructor(fmgc: Fmgc) {
-        this.climbPathBuilder = new ClimbPathBuilder(fmgc);
+    constructor(fmgc: Fmgc, flightPlanManager: FlightPlanManager) {
+        this.climbPathBuilder = new ClimbPathBuilder(fmgc, flightPlanManager);
     }
 
     acceptNewMultipleLegGeometry(geometry: Geometry) {

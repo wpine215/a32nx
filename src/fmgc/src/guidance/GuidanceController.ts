@@ -42,7 +42,7 @@ export class GuidanceController {
         this.guidanceManager = guidanceManager;
 
         this.lnavDriver = new LnavDriver(this);
-        this.vnavDriver = new VnavDriver(fmgc);
+        this.vnavDriver = new VnavDriver(fmgc, flightPlanManager);
         this.pseudoWaypoints = new PseudoWaypoints(this);
     }
 

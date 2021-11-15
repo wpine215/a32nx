@@ -7,6 +7,7 @@ import { EngineModel } from '../EngineModel';
 import { TFLeg } from '@fmgc/guidance/lnav/legs/TF';
 import { RFLeg } from '@fmgc/guidance/lnav/legs/RF';
 import { AltitudeConstraint } from '@fmgc/guidance/lnav/legs';
+import { FlightPlanManager } from '@fmgc/flightplanning/FlightPlanManager';
 
 export class ClimbPathBuilder {
     private static TONS_TO_POUNDS = 2240;
@@ -19,7 +20,7 @@ export class ClimbPathBuilder {
     private climbSpeedLimitAltitude: number;
     private perfFactor: number;
 
-    constructor(private fmgc: Fmgc) {
+    constructor(private fmgc: Fmgc, private flightPlanManager: FlightPlanManager) {
         SimVar.SetSimVarValue('L:A32NX_STATUS_PERF_FACTOR', 'Percent', 0);
     }
 
@@ -64,6 +65,11 @@ export class ClimbPathBuilder {
         }
     }
 
+    /**
+     * Compute climb profile assuming climb thrust until top of climb. This does not care if we're below acceleration/thrust reduction altitude.
+     * @param geometry
+     * @returns
+     */
     computeLivePrediction(geometry: Geometry): ClimbProfileBuilderResult {
         const checkpoints: VerticalCheckpoint[] = [];
 
@@ -103,7 +109,7 @@ export class ClimbPathBuilder {
 
             if (leg instanceof TFLeg || leg instanceof RFLeg) {
                 const predictedAltitude = this.interpolateAltitude(totalDistance, sortedCheckpoints);
-                console.log({ i, distance: leg.distance, totalDistance, 'waypoint': leg.from.ident, predictedAltitude, constraint: leg.altitudeConstraint })
+                console.log({ i, distance: leg.distance, totalDistance, 'from': leg.from.ident, 'to': leg.to.ident, predictedAltitude, constraint: leg.altitudeConstraint })
             } else {
                 console.warn(`[FMS/VNAV] Invalid leg when printing flightplan`)
             }
@@ -187,9 +193,9 @@ export class ClimbPathBuilder {
     }
 
     private addClimbSteps(checkpoints: VerticalCheckpoint[], startingAltitude: number) {
-        for (let altitude = startingAltitude; altitude < this.cruiseAltitude; altitude = Math.min(altitude + 1000, this.cruiseAltitude)) {
+        for (let altitude = startingAltitude; altitude < this.cruiseAltitude; altitude = Math.min(altitude + 1500, this.cruiseAltitude)) {
             const climbSpeed = altitude > this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit;
-            const targetAltitude = Math.min(altitude + 1000, this.cruiseAltitude);
+            const targetAltitude = Math.min(altitude + 1500, this.cruiseAltitude);
             const remainingFuelOnBoard = checkpoints[checkpoints.length - 1].remainingFuelOnBoard
 
             const { predictedN1, distanceTraveled, fuelBurned } = this.computeClimbSegmentPrediction(altitude, targetAltitude, climbSpeed, remainingFuelOnBoard);
@@ -226,11 +232,12 @@ export class ClimbPathBuilder {
     }
 
     private computeTotalFlightPlanDistanceFromPresentPosition(geometry: Geometry): number {
-        let totalDistance = geometry.getDistanceToGo(this.getPresentPosition());
-        console.log(`distanceToGo: ${JSON.stringify(totalDistance)}`);
+        let totalDistance = this.flightPlanManager.getDistanceToActiveWaypoint();
+        let numberOfLegsToGo = geometry.legs.size;
 
         for (const [i, leg] of geometry.legs.entries()) {
-            if (i > 1) {
+            // Because of how sequencing works, the first leg (last one in geometry.legs) is behind the aircraft and the second one is the one we're on. The distance of the one we're on is included through the getDistanceToActiveWaypoint() at the beginning.
+            if (numberOfLegsToGo-- > 2) {
                 totalDistance += leg.distance
             }
         }
