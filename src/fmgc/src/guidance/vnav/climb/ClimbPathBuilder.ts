@@ -6,7 +6,7 @@ import { Fmgc } from '@fmgc/guidance/GuidanceController';
 import { EngineModel } from '../EngineModel';
 import { TFLeg } from '@fmgc/guidance/lnav/legs/TF';
 import { RFLeg } from '@fmgc/guidance/lnav/legs/RF';
-import { AltitudeConstraint } from '@fmgc/guidance/lnav/legs';
+import { AltitudeConstraint, AltitudeConstraintType } from '@fmgc/guidance/lnav/legs';
 import { FlightPlanManager } from '@fmgc/flightplanning/FlightPlanManager';
 
 export class ClimbPathBuilder {
@@ -74,10 +74,10 @@ export class ClimbPathBuilder {
         const checkpoints: VerticalCheckpoint[] = [];
 
         const currentAltitude = SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
-        const totalDistance = this.computeTotalFlightPlanDistanceFromPresentPosition(geometry);
+        const totalDistance = this.computeTotalFlightPlanDistance(geometry);
         console.log(`totalDistanceFromPresentPosition: ${JSON.stringify(totalDistance)}`);
 
-        this.addPresentPositionCheckpoint(checkpoints, currentAltitude)
+        this.addPresentPositionCheckpoint(geometry, checkpoints, currentAltitude)
         this.addClimbSteps(checkpoints, currentAltitude);
 
         const distanceToTopOfClimbFromEnd = totalDistance - checkpoints[checkpoints.length - 1].distanceFromStart;
@@ -91,10 +91,10 @@ export class ClimbPathBuilder {
         }
     }
 
-    private addPresentPositionCheckpoint(checkpoints: VerticalCheckpoint[], altitude: number) {
+    private addPresentPositionCheckpoint(geometry: Geometry, checkpoints: VerticalCheckpoint[], altitude: number) {
         checkpoints.push({
             reason: VerticalCheckpointReason.PresentPosition,
-            distanceFromStart: 0,
+            distanceFromStart: this.computeDistanceFromOriginToPresentPosition(geometry),
             altitude,
             predictedN1: SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT', 'Percent'),
             remainingFuelOnBoard: this.fmgc.getFOB() * ClimbPathBuilder.TONS_TO_POUNDS
@@ -105,14 +105,19 @@ export class ClimbPathBuilder {
         let totalDistance = this.computeTotalFlightPlanDistance(geometry);
 
         for (const [i, leg] of geometry.legs.entries()) {
-            totalDistance -= leg.distance;
-
             if (leg instanceof TFLeg || leg instanceof RFLeg) {
-                const predictedAltitude = this.interpolateAltitude(totalDistance, sortedCheckpoints);
-                console.log({ i, distance: leg.distance, totalDistance, 'from': leg.from.ident, 'to': leg.to.ident, predictedAltitude, constraint: leg.altitudeConstraint })
+                const predictedAltitudeAtStartOfLeg = this.interpolateAltitude(totalDistance, sortedCheckpoints);
+
+                if (this.isAltitudeConstraintMet(predictedAltitudeAtStartOfLeg, leg.altitudeConstraint)) {
+                    console.log({ i, 'from': leg.from.ident, 'to': leg.to.ident, predictedAltitude: predictedAltitudeAtStartOfLeg, constraint: leg.altitudeConstraint })
+                } else {
+                    console.warn({ i, 'from': leg.from.ident, 'to': leg.to.ident, predictedAltitude: predictedAltitudeAtStartOfLeg, constraint: leg.altitudeConstraint })
+                }
             } else {
                 console.warn(`[FMS/VNAV] Invalid leg when printing flightplan`)
             }
+
+            totalDistance -= leg.distance;
         }
     }
 
@@ -133,10 +138,11 @@ export class ClimbPathBuilder {
     private addTakeoffStepCheckpoint(checkpoints: VerticalCheckpoint[], groundAltitude: number, thrustReductionAltitude: number) {
         const midwayAltitudeSrs = (thrustReductionAltitude + groundAltitude) / 2;
         const predictedN1 = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TOGA', 'Percent');
+        const flapsSetting: FlapConf = SimVar.GetSimVarValue('L:A32NX_TO_CONFIG_FLAPS', 'Enum');
         const machSrs = this.computeMachFromCas(midwayAltitudeSrs, this.isaDeviation(), this.fmgc.getV2Speed() + 10);
         const remainingFuelOnBoard = checkpoints[checkpoints.length - 1].remainingFuelOnBoard
 
-        const { fuelBurned, distanceTraveled } = Predictions.altitudeStep(groundAltitude, thrustReductionAltitude - groundAltitude, this.fmgc.getV2Speed() + 10, machSrs, predictedN1, this.fmgc.getZeroFuelWeight() * ClimbPathBuilder.TONS_TO_POUNDS, remainingFuelOnBoard, 0, this.isaDeviation(), this.fmgc.getTropoPause(), false, FlapConf.CONF_1, this.perfFactor)
+        const { fuelBurned, distanceTraveled } = Predictions.altitudeStep(groundAltitude, thrustReductionAltitude - groundAltitude, this.fmgc.getV2Speed() + 10, machSrs, predictedN1, this.fmgc.getZeroFuelWeight() * ClimbPathBuilder.TONS_TO_POUNDS, remainingFuelOnBoard, 0, this.isaDeviation(), this.fmgc.getTropoPause(), false, flapsSetting, this.perfFactor)
 
         checkpoints.push({
             reason: VerticalCheckpointReason.ThrustReductionAltitude,
@@ -245,6 +251,11 @@ export class ClimbPathBuilder {
         return totalDistance;
     }
 
+    // I know this is bad performance wise, since we are iterating over the map twice
+    private computeDistanceFromOriginToPresentPosition(geometry: Geometry): number {
+        return this.computeTotalFlightPlanDistance(geometry) - this.computeTotalFlightPlanDistanceFromPresentPosition(geometry)
+    }
+
     private isaDeviation(): number {
         const ambientTemperature = SimVar.GetSimVarValue('AMBIENT TEMPERATURE', 'celsius');
         const altitude = SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
@@ -269,6 +280,23 @@ export class ClimbPathBuilder {
         return {
             lat: SimVar.GetSimVarValue('PLANE LATITUDE', 'degree latitude'),
             long: SimVar.GetSimVarValue('PLANE LONGITUDE', 'degree longitude'),
+        }
+    }
+
+    private isAltitudeConstraintMet(altitude: number, constraint?: AltitudeConstraint): boolean {
+        if (!constraint)
+            return true;
+
+        switch (constraint.type) {
+            case AltitudeConstraintType.at:
+                // TODO: Figure out actual condition when a constraint counts as "met"
+                return Math.abs(altitude - constraint.altitude1) < 100
+            case AltitudeConstraintType.atOrAbove:
+                return altitude >= constraint.altitude1
+            case AltitudeConstraintType.atOrBelow:
+                return altitude <= constraint.altitude1
+            case AltitudeConstraintType.range:
+                return altitude >= constraint.altitude1 && altitude <= constraint.altitude2
         }
     }
 }
