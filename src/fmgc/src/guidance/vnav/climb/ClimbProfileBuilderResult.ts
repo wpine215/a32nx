@@ -13,6 +13,7 @@ export interface VerticalCheckpoint {
     altitude: number,
     predictedN1: number,
     remainingFuelOnBoard: number
+    speed: number
 }
 
 export interface ClimbProfileBuilderResult {
