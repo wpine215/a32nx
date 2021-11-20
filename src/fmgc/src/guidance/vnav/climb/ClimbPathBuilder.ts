@@ -26,8 +26,6 @@ export class ClimbPathBuilder {
     }
 
     update() {
-        console.log(`[FMS/VNAV] Updating ClimbPathBuilder`)
-
         this.airfieldElevation = SimVar.GetSimVarValue('L:A32NX_DEPARTURE_ELEVATION', 'feet');
         this.accelerationAltitude = SimVar.GetSimVarValue('L:AIRLINER_ACC_ALT', 'number');
         this.thrustReductionAltitude = SimVar.GetSimVarValue('L:AIRLINER_THR_RED_ALT', 'number');
@@ -38,14 +36,16 @@ export class ClimbPathBuilder {
     }
 
     computeClimbPath(geometry: Geometry): ClimbProfileBuilderResult {
-        // temporary
         const isOnGround = SimVar.GetSimVarValue('SIM ON GROUND', 'Bool');
 
         if (!isOnGround) {
-            console.log(`[FMS/VNAV] Using enroute predictions`)
             return this.computeLivePrediction(geometry);
         }
 
+        return this.computePreflightPrediction(geometry);
+    }
+
+    computePreflightPrediction(geometry: Geometry): ClimbProfileBuilderResult {
         const checkpoints: VerticalCheckpoint[] = [];
 
         const totalDistance = this.computeTotalFlightPlanDistance(geometry);
@@ -76,7 +76,6 @@ export class ClimbPathBuilder {
 
         const currentAltitude = SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
         const totalDistance = this.computeTotalFlightPlanDistance(geometry);
-        console.log(`totalDistanceFromPresentPosition: ${JSON.stringify(totalDistance)}`);
 
         this.addPresentPositionCheckpoint(geometry, checkpoints, currentAltitude)
         this.addClimbSteps(geometry, checkpoints, currentAltitude);
@@ -85,7 +84,6 @@ export class ClimbPathBuilder {
 
         this.printAltitudePredictionsAtAltitudes(geometry, [...checkpoints].sort((a, b) => a.distanceFromStart - b.distanceFromStart));
         this.printDistanceFromTocToClosestWaypoint(geometry, distanceToTopOfClimbFromEnd)
-        console.log('Current max speed: ', this.findMaxSpeedAtDistanceAlongTrack(geometry, this.computeDistanceFromOriginToPresentPosition(geometry)));
 
         return {
             checkpoints,
@@ -231,8 +229,17 @@ export class ClimbPathBuilder {
     private computeClimbSegmentPrediction(startingAltitude: number, targetAltitude: number, climbSpeed: number, remainingFuelOnBoard: number): StepResults & { predictedN1: number } {
         const midwayAltitudeClimb = (startingAltitude + targetAltitude) / 2;
         const isaDeviation = this.isaDeviation();
-
         const machClimb = this.computeMachFromCas(midwayAltitudeClimb, isaDeviation, climbSpeed);
+
+        const selectedVs = SimVar.GetSimVarValue('L:A32NX_AUTOPILOT_VS_SELECTED', 'feet per minute');
+        if (!SimVar.GetSimVarValue('L:A32NX_FCU_VS_MANAGED', 'Bool') && selectedVs > 0) {
+            console.log(`[FMS/VNAV] Predictions running with V/S ${selectedVs} fpm`)
+
+            return Predictions.verticalSpeedStep(startingAltitude, targetAltitude, selectedVs, climbSpeed, machClimb, this.fmgc.getZeroFuelWeight() * ClimbPathBuilder.TONS_TO_POUNDS, remainingFuelOnBoard, isaDeviation, this.perfFactor )
+        }
+
+        console.log(`[FMS/VNAV] Predictions running in managed mode`)
+
         const estimatedTat = this.totalAirTemperatureFromMach(midwayAltitudeClimb, machClimb, isaDeviation)
         const predictedN1 = this.getClimbThrustN1Limit(estimatedTat, midwayAltitudeClimb);
 
@@ -328,4 +335,31 @@ export class ClimbPathBuilder {
 
         return mostRestrictiveSpeedLimit;
     }
+
+    private findMaxAltitudeConstraints(geometry: Geometry): MaxAltitudeConstraint[] {
+        const result: MaxAltitudeConstraint[] = [];
+        let distanceAlongTrackForStartOfLegWaypoint = this.computeTotalFlightPlanDistance(geometry);
+
+        for (const [i, leg] of geometry.legs.entries()) {
+            distanceAlongTrackForStartOfLegWaypoint -= leg.distance;
+
+            if (leg.segment !== SegmentType.Origin && leg.segment !== SegmentType.Departure) {
+                continue;
+            }
+
+            if (leg.altitudeConstraint?.type !== AltitudeConstraintType.atOrAbove) {
+                result.push({
+                    distanceFromStart: distanceAlongTrackForStartOfLegWaypoint + leg.distance,
+                    maxAltitude: leg.altitudeConstraint.type === AltitudeConstraintType.range ? leg.altitudeConstraint.altitude2 : leg.altitudeConstraint.altitude1,
+                })
+            }
+        }
+
+        return result
+    }
+}
+
+interface MaxAltitudeConstraint {
+    distanceFromStart: number,
+    maxAltitude: number,
 }

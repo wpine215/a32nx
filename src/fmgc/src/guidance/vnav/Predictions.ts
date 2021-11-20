@@ -578,4 +578,70 @@ export class Predictions {
 
         return accelRate;
     }
+
+    static verticalSpeedStep(
+        initialAltitude: number,
+        finalAltitude: number,
+        verticalSpeed: number,
+        econCAS: number,
+        econMach: number,
+        zeroFuelWeight: number,
+        initialFuelWeight: number,
+        isaDev: number,
+        perfFactorPercent: number,
+    ): StepResults & { predictedN1: number } {
+        const midStepAltitude = (initialAltitude + finalAltitude) / 2;
+
+        const theta = Common.getTheta(midStepAltitude, isaDev);
+        const delta = Common.getDelta(theta);
+
+        let mach = Common.CAStoMach(econCAS, delta);
+        const delta2 = Common.getDelta2(delta, mach);
+        const theta2 = Common.getTheta2(theta, mach);
+
+        let tas;
+        // If above crossover altitude, use econMach
+        if (mach > econMach) {
+            mach = econMach;
+            tas = Common.machToTAS(mach, theta);
+        } else {
+            tas = Common.CAStoTAS(econCAS, theta, delta);
+        }
+
+
+        const pathAngle = Math.atan2(verticalSpeed, tas * 101.269); // radians
+        const stepTime = (finalAltitude - initialAltitude) / verticalSpeed // minutes
+        const distanceTraveled = tas * Math.cos(pathAngle) * stepTime / 60
+
+        let fuelBurned = 0;
+        let iterations = 0;
+        let midstepWeight = zeroFuelWeight + initialFuelWeight;
+        let previousMidstepWeight = midstepWeight;
+        let predictedN1 = 0;
+        do {
+            const drag = FlightModel.getDrag(midstepWeight, mach, delta, false, false, FlapConf.CLEAN);
+            const thrust = FlightModel.getThrustFromConstantPathAngle(pathAngle * MathUtils.Rad2Deg, midstepWeight, drag, 0);
+
+            const correctedThrust = (thrust / delta2) / 2;
+            // Since table 1506 describes corrected thrust as a fraction of max thrust, divide it
+            predictedN1 = EngineModel.reverseTableInterpolation(EngineModel.table1506, mach, (correctedThrust / EngineModel.maxThrust));
+
+            const correctedFuelFlow = EngineModel.getCorrectedFuelFlow(predictedN1, mach, midStepAltitude) * 2;
+            const fuelFlow = EngineModel.getUncorrectedFuelFlow(correctedFuelFlow, delta2, theta2) * (1 + perfFactorPercent / 100); // in lbs/hour
+
+            fuelBurned = fuelFlow / 60 * stepTime
+            previousMidstepWeight = midstepWeight
+            midstepWeight -= (fuelBurned / 2)
+        } while (++iterations < 4 && Math.abs(previousMidstepWeight - midstepWeight) < 100)
+
+        return {
+            pathAngle: pathAngle * MathUtils.Rad2Deg,
+            verticalSpeed,
+            distanceTraveled,
+            fuelBurned,
+            timeElapsed: stepTime,
+            finalAltitude,
+            predictedN1
+        };
+    }
 }
