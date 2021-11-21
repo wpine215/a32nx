@@ -38,6 +38,9 @@ export class ClimbPathBuilder {
     computeClimbPath(geometry: Geometry): ClimbProfileBuilderResult {
         const isOnGround = SimVar.GetSimVarValue('SIM ON GROUND', 'Bool');
 
+        const constraints = this.findMaxAltitudeConstraints(geometry);
+        console.log(constraints);
+
         if (!isOnGround) {
             return this.computeLivePrediction(geometry);
         }
@@ -53,7 +56,8 @@ export class ClimbPathBuilder {
         this.addTakeoffRollCheckpoint(checkpoints, this.fmgc.getFOB() * ClimbPathBuilder.TONS_TO_POUNDS);
         this.addTakeoffStepCheckpoint(checkpoints, this.airfieldElevation, this.thrustReductionAltitude);
         this.addAccelerationAltitudeStep(checkpoints, this.thrustReductionAltitude, this.accelerationAltitude, this.fmgc.getV2Speed() + 10);
-        this.addClimbSteps(geometry, checkpoints, this.accelerationAltitude);
+
+        this.addClimbSteps(geometry, checkpoints, this.accelerationAltitude, this.cruiseAltitude, VerticalCheckpointReason.TopOfClimb);
 
         this.printAltitudePredictionsAtAltitudes(geometry, [...checkpoints].sort((a, b) => a.distanceFromStart - b.distanceFromStart));
 
@@ -78,7 +82,7 @@ export class ClimbPathBuilder {
         const totalDistance = this.computeTotalFlightPlanDistance(geometry);
 
         this.addPresentPositionCheckpoint(geometry, checkpoints, currentAltitude)
-        this.addClimbSteps(geometry, checkpoints, currentAltitude);
+        this.addClimbSteps(geometry, checkpoints, currentAltitude, this.cruiseAltitude, VerticalCheckpointReason.TopOfClimb);
 
         const distanceToTopOfClimbFromEnd = totalDistance - checkpoints[checkpoints.length - 1].distanceFromStart;
 
@@ -202,21 +206,75 @@ export class ClimbPathBuilder {
         });
     }
 
-    private addClimbSteps(geometry: Geometry, checkpoints: VerticalCheckpoint[], startingAltitude: number) {
-        for (let altitude = startingAltitude; altitude < this.cruiseAltitude; altitude = Math.min(altitude + 1500, this.cruiseAltitude)) {
+    private addClimbSteps(geometry: Geometry, checkpoints: VerticalCheckpoint[], startingAltitude: number, finalAltitude: number, finalAltitudeCheckpointReason: VerticalCheckpointReason) {
+        // Yes, this is in fact terrible code. Refactor is coming soon™
+        const constraints = this.findMaxAltitudeConstraints(geometry);
+
+        let altitude = startingAltitude;
+        for (const constraint of constraints) {
+            const constraintAltitude = constraint.maxAltitude;
+
+            if (constraintAltitude > altitude) {
+                if (checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.WaypointWithConstraint) {
+                    checkpoints.push({
+                        reason: VerticalCheckpointReason.ContinueClimb,
+                        distanceFromStart: constraint.distanceFromStart,
+                        altitude: altitude,
+                        predictedN1: 0, // TODO
+                        remainingFuelOnBoard: checkpoints[checkpoints.length - 1].remainingFuelOnBoard,
+                        speed: checkpoints[checkpoints.length - 1].speed
+                    })
+                }
+
+                for (; altitude < constraintAltitude; altitude = Math.min(altitude + 1500, constraintAltitude)) {
+                    const distanceAtStartOfStep = checkpoints[checkpoints.length - 1].distanceFromStart;
+                    const climbSpeed = Math.min(
+                        altitude > this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
+                        this.findMaxSpeedAtDistanceAlongTrack(geometry, distanceAtStartOfStep)
+                    );
+
+                    const targetAltitude = Math.min(altitude + 1500, constraintAltitude);
+                    const remainingFuelOnBoard = checkpoints[checkpoints.length - 1].remainingFuelOnBoard
+
+                    const { predictedN1, distanceTraveled, fuelBurned } = this.computeClimbSegmentPrediction(altitude, targetAltitude, climbSpeed, remainingFuelOnBoard);
+
+                    checkpoints.push({
+                        reason: Math.abs(targetAltitude - constraintAltitude) < 1  ? VerticalCheckpointReason.LevelOffForConstraint : VerticalCheckpointReason.AtmosphericConditions,
+                        distanceFromStart: distanceAtStartOfStep + distanceTraveled,
+                        altitude: targetAltitude,
+                        predictedN1,
+                        remainingFuelOnBoard: remainingFuelOnBoard - fuelBurned,
+                        speed: climbSpeed
+                    })
+                }
+            }
+
+            if (checkpoints[checkpoints.length - 1].distanceFromStart < constraint.distanceFromStart) {
+                checkpoints.push({
+                    reason: VerticalCheckpointReason.WaypointWithConstraint,
+                    distanceFromStart: constraint.distanceFromStart,
+                    altitude: altitude,
+                    predictedN1: 0, // TODO
+                    remainingFuelOnBoard: checkpoints[checkpoints.length - 1].remainingFuelOnBoard,
+                    speed: checkpoints[checkpoints.length - 1].speed
+                })
+            }
+        }
+
+        for (; altitude < finalAltitude; altitude = Math.min(altitude + 1500, finalAltitude)) {
             const distanceAtStartOfStep = checkpoints[checkpoints.length - 1].distanceFromStart;
             const climbSpeed = Math.min(
                 altitude > this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
                 this.findMaxSpeedAtDistanceAlongTrack(geometry, distanceAtStartOfStep)
             );
 
-            const targetAltitude = Math.min(altitude + 1500, this.cruiseAltitude);
+            const targetAltitude = Math.min(altitude + 1500, finalAltitude);
             const remainingFuelOnBoard = checkpoints[checkpoints.length - 1].remainingFuelOnBoard
 
             const { predictedN1, distanceTraveled, fuelBurned } = this.computeClimbSegmentPrediction(altitude, targetAltitude, climbSpeed, remainingFuelOnBoard);
 
             checkpoints.push({
-                reason: targetAltitude === this.cruiseAltitude ? VerticalCheckpointReason.TopOfClimb : VerticalCheckpointReason.AtmosphericConditions,
+                reason: targetAltitude === finalAltitude ? VerticalCheckpointReason.TopOfClimb : VerticalCheckpointReason.AtmosphericConditions,
                 distanceFromStart: distanceAtStartOfStep + distanceTraveled,
                 altitude: targetAltitude,
                 predictedN1,
@@ -347,7 +405,7 @@ export class ClimbPathBuilder {
                 continue;
             }
 
-            if (leg.altitudeConstraint?.type !== AltitudeConstraintType.atOrAbove) {
+            if (leg.altitudeConstraint && leg.altitudeConstraint.type !== AltitudeConstraintType.atOrAbove) {
                 result.push({
                     distanceFromStart: distanceAlongTrackForStartOfLegWaypoint + leg.distance,
                     maxAltitude: leg.altitudeConstraint.type === AltitudeConstraintType.range ? leg.altitudeConstraint.altitude2 : leg.altitudeConstraint.altitude1,

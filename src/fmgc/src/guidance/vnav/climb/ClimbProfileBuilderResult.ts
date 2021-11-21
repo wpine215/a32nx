@@ -1,10 +1,13 @@
 export enum VerticalCheckpointReason {
-    Liftoff,
-    ThrustReductionAltitude,
-    AccelerationAltitude,
-    TopOfClimb,
-    AtmosphericConditions,
-    PresentPosition,
+    Liftoff = "Liftoff",
+    ThrustReductionAltitude = "ThrustReductionAltitude",
+    AccelerationAltitude = "AccelerationAltitude",
+    TopOfClimb = "TopOfClimb",
+    AtmosphericConditions = "AtmosphericConditions",
+    PresentPosition = "PresentPosition",
+    LevelOffForConstraint = "LevelOffForConstraint",
+    WaypointWithConstraint = "WaypointWithConstraint",
+    ContinueClimb = "ContinueClimb",
 }
 
 export interface VerticalCheckpoint {
