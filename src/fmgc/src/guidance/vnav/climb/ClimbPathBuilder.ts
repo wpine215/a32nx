@@ -67,6 +67,8 @@ export class ClimbPathBuilder {
         return {
             checkpoints,
             distanceToTopOfClimbFromEnd,
+            distanceToRestrictionLevelOffFromEnd: this.findDistanceFromEndToEarliestLevelOffForRestriction(geometry, checkpoints),
+            distanceToContinueClimbFromEnd: this.findDistanceFromEndToEarliestContinueClimb(geometry, checkpoints),
         }
     }
 
@@ -92,6 +94,8 @@ export class ClimbPathBuilder {
         return {
             checkpoints,
             distanceToTopOfClimbFromEnd,
+            distanceToRestrictionLevelOffFromEnd: this.findDistanceFromEndToEarliestLevelOffForRestriction(geometry, checkpoints),
+            distanceToContinueClimbFromEnd: this.findDistanceFromEndToEarliestContinueClimb(geometry, checkpoints),
         }
     }
 
@@ -408,6 +412,18 @@ export class ClimbPathBuilder {
         }
 
         return result
+    }
+
+    private findDistanceFromEndToEarliestLevelOffForRestriction(geometry: Geometry, checkpoints: VerticalCheckpoint[]): number | undefined {
+        const totalDistance = this.computeTotalFlightPlanDistance(geometry);
+
+        return totalDistance - checkpoints.find(checkpoint => checkpoint.reason === VerticalCheckpointReason.LevelOffForConstraint)?.distanceFromStart;
+    }
+
+    private findDistanceFromEndToEarliestContinueClimb(geometry: Geometry, checkpoints: VerticalCheckpoint[]): number | undefined {
+        const totalDistance = this.computeTotalFlightPlanDistance(geometry);
+
+        return totalDistance - checkpoints.find(checkpoint => checkpoint.reason === VerticalCheckpointReason.ContinueClimb)?.distanceFromStart;
     }
 }
 

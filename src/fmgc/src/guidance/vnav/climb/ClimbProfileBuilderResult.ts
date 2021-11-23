@@ -22,4 +22,6 @@ export interface VerticalCheckpoint {
 export interface ClimbProfileBuilderResult {
     checkpoints: VerticalCheckpoint[],
     distanceToTopOfClimbFromEnd: number
+    distanceToRestrictionLevelOffFromEnd?: number
+    distanceToContinueClimbFromEnd?: number
 }

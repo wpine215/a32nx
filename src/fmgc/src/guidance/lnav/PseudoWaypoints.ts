@@ -28,8 +28,9 @@ export class PseudoWaypoints implements GuidanceComponent {
         const newPseudoWaypoints: PseudoWaypoint[] = [];
 
         if (VnavConfig.VNAV_CALCULATE_CLIMB_PROFILE) {
-            const toc = PseudoWaypoints.pointFromEndOfPath(geometry, this.guidanceController.vnavDriver.currentClimbProfile.distanceToTopOfClimbFromEnd);
+            const { distanceToTopOfClimbFromEnd, distanceToRestrictionLevelOffFromEnd, distanceToContinueClimbFromEnd } = this.guidanceController.vnavDriver.currentClimbProfile;
 
+            const toc = PseudoWaypoints.pointFromEndOfPath(geometry, distanceToTopOfClimbFromEnd);
             if (toc) {
                 const [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = toc;
 
@@ -42,6 +43,40 @@ export class PseudoWaypoints implements GuidanceComponent {
                     displayedOnMcdu: true,
                     stats: PseudoWaypoints.computePseudoWaypointStats(PWP_IDENT_TOC, geometry.legs.get(alongLegIndex), distanceFromLegTermination),
                 });
+            }
+
+            if (distanceToRestrictionLevelOffFromEnd) {
+                const levelOff = PseudoWaypoints.pointFromEndOfPath(geometry, distanceToRestrictionLevelOffFromEnd);
+                if (levelOff) {
+                    const [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = levelOff;
+
+                    newPseudoWaypoints.push({
+                        ident: "Level off",
+                        alongLegIndex,
+                        distanceFromLegTermination,
+                        efisSymbolFlag: NdSymbolTypeFlags.PwpLevelOffForRestriction,
+                        efisSymbolLla,
+                        displayedOnMcdu: false,
+                        stats: PseudoWaypoints.computePseudoWaypointStats("", geometry.legs.get(alongLegIndex), distanceFromLegTermination),
+                    });
+                }
+            }
+
+            if (distanceToContinueClimbFromEnd) {
+                const continueClimb = PseudoWaypoints.pointFromEndOfPath(geometry, distanceToContinueClimbFromEnd);
+                if (continueClimb) {
+                    const [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = continueClimb;
+
+                    newPseudoWaypoints.push({
+                        ident: "Continue Climb",
+                        alongLegIndex,
+                        distanceFromLegTermination,
+                        efisSymbolFlag: NdSymbolTypeFlags.PwpContinueClimb,
+                        efisSymbolLla,
+                        displayedOnMcdu: false,
+                        stats: PseudoWaypoints.computePseudoWaypointStats("", geometry.legs.get(alongLegIndex), distanceFromLegTermination),
+                    });
+                }
             }
         }
 
