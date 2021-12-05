@@ -7,6 +7,7 @@ import { DescentBuilder } from '@fmgc/guidance/vnav/descent/DescentBuilder';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
+import { GeometryProfile } from './GeometryProfile';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
 import { ClimbProfileBuilderResult } from './climb/ClimbProfileBuilderResult';
 import { Fmgc } from '../GuidanceController';
@@ -14,7 +15,7 @@ import { FlightPlanManager } from '@fmgc/flightplanning/FlightPlanManager';
 
 export class VnavDriver implements GuidanceComponent {
     climbPathBuilder: ClimbPathBuilder;
-    currentClimbProfile: ClimbProfileBuilderResult;
+    currentGeometryProfile: GeometryProfile;
 
     currentDescentProfile: TheoreticalDescentPathCharacteristics
 
@@ -42,8 +43,9 @@ export class VnavDriver implements GuidanceComponent {
     private computeVerticalProfile(geometry: Geometry) {
         if (geometry.legs.size > 0) {
             if (VnavConfig.VNAV_CALCULATE_CLIMB_PROFILE) {
-                this.currentClimbProfile = this.climbPathBuilder.computeClimbPath(geometry);
-                console.log(JSON.stringify(this.currentClimbProfile));
+                this.currentGeometryProfile = this.climbPathBuilder.computeClimbPath(geometry);
+
+                console.log(this.currentGeometryProfile);
             }
             this.currentApproachProfile = DecelPathBuilder.computeDecelPath(geometry);
             this.currentDescentProfile = DescentBuilder.computeDescentPath(geometry, this.currentApproachProfile);

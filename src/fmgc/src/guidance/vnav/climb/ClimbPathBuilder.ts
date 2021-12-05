@@ -10,6 +10,7 @@ import { AltitudeConstraint, AltitudeConstraintType, SpeedConstraintType } from 
 import { FlightPlanManager } from '@fmgc/flightplanning/FlightPlanManager';
 import { SegmentType } from '@fmgc/wtsdk';
 import { Feet, Knots, NauticalMiles } from '../../../../../../typings/types';
+import { GeometryProfile } from '../GeometryProfile';
 
 export class ClimbPathBuilder {
     private static TONS_TO_POUNDS = 2240;
@@ -36,7 +37,7 @@ export class ClimbPathBuilder {
         this.perfFactor = SimVar.GetSimVarValue('L:A32NX_STATUS_PERF_FACTOR', 'Percent');
     }
 
-    computeClimbPath(geometry: Geometry): ClimbProfileBuilderResult {
+    computeClimbPath(geometry: Geometry): GeometryProfile {
         const isOnGround = SimVar.GetSimVarValue('SIM ON GROUND', 'Bool');
 
         const constraints = this.findMaxAltitudeConstraints(geometry);
@@ -49,7 +50,7 @@ export class ClimbPathBuilder {
         return this.computePreflightPrediction(geometry);
     }
 
-    computePreflightPrediction(geometry: Geometry): ClimbProfileBuilderResult {
+    computePreflightPrediction(geometry: Geometry): GeometryProfile {
         const checkpoints: VerticalCheckpoint[] = [];
 
         const totalDistance = this.computeTotalFlightPlanDistance(geometry);
@@ -60,19 +61,10 @@ export class ClimbPathBuilder {
 
         this.addClimbSteps(geometry, checkpoints, this.accelerationAltitude, this.cruiseAltitude);
 
-        this.printAltitudePredictionsAtAltitudes(geometry, [...checkpoints].sort((a, b) => a.distanceFromStart - b.distanceFromStart));
-
         const distanceToTopOfClimbFromEnd = totalDistance - checkpoints[checkpoints.length - 1].distanceFromStart;
         this.printDistanceFromTocToClosestWaypoint(geometry, distanceToTopOfClimbFromEnd);
 
-        debugger;
-
-        return {
-            checkpoints,
-            distanceToTopOfClimbFromEnd,
-            distanceToRestrictionLevelOffFromEnd: this.findDistanceFromEndToEarliestLevelOffForRestriction(geometry, checkpoints),
-            distanceToContinueClimbFromEnd: this.findDistanceFromEndToEarliestContinueClimb(geometry, checkpoints),
-        }
+        return new GeometryProfile(geometry, checkpoints)
     }
 
     /**
@@ -80,28 +72,20 @@ export class ClimbPathBuilder {
      * @param geometry
      * @returns
      */
-    computeLivePrediction(geometry: Geometry): ClimbProfileBuilderResult {
+    computeLivePrediction(geometry: Geometry): GeometryProfile {
         const checkpoints: VerticalCheckpoint[] = [];
 
         const currentAltitude = SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
         const totalDistance = this.computeTotalFlightPlanDistance(geometry);
-
-        debugger;
 
         this.addPresentPositionCheckpoint(geometry, checkpoints, currentAltitude);
         this.addClimbSteps(geometry, checkpoints, currentAltitude, this.cruiseAltitude);
 
         const distanceToTopOfClimbFromEnd = totalDistance - checkpoints[checkpoints.length - 1].distanceFromStart;
 
-        this.printAltitudePredictionsAtAltitudes(geometry, [...checkpoints].sort((a, b) => a.distanceFromStart - b.distanceFromStart));
         this.printDistanceFromTocToClosestWaypoint(geometry, distanceToTopOfClimbFromEnd);
 
-        return {
-            checkpoints,
-            distanceToTopOfClimbFromEnd,
-            distanceToRestrictionLevelOffFromEnd: this.findDistanceFromEndToEarliestLevelOffForRestriction(geometry, checkpoints),
-            distanceToContinueClimbFromEnd: this.findDistanceFromEndToEarliestContinueClimb(geometry, checkpoints),
-        }
+        return new GeometryProfile(geometry, checkpoints)
     }
 
     private addPresentPositionCheckpoint(geometry: Geometry, checkpoints: VerticalCheckpoint[], altitude: Feet) {
@@ -113,26 +97,6 @@ export class ClimbPathBuilder {
             remainingFuelOnBoard: this.fmgc.getFOB() * ClimbPathBuilder.TONS_TO_POUNDS,
             speed: SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots'),
         });
-    }
-
-    private printAltitudePredictionsAtAltitudes(geometry: Geometry, sortedCheckpoints: VerticalCheckpoint[]) {
-        let totalDistance = this.computeTotalFlightPlanDistance(geometry);
-
-        for (const [i, leg] of geometry.legs.entries()) {
-            if (leg instanceof TFLeg || leg instanceof RFLeg) {
-                const predictedAltitudeAtEndOfLeg = this.interpolateAltitude(totalDistance, sortedCheckpoints);
-
-                if (this.isAltitudeConstraintMet(predictedAltitudeAtEndOfLeg, leg.altitudeConstraint)) {
-                    console.log({ i, 'from': leg.from.ident, 'to': leg.to.ident, predictedAltitude: predictedAltitudeAtEndOfLeg, distanceToToWaypoint: totalDistance, constraint: leg.altitudeConstraint?.altitude1, maxSpeed: this.findMaxSpeedAtDistanceAlongTrack(geometry, totalDistance), speedConstraint: leg.speedConstraint?.speed });
-                } else {
-                    console.warn({ i, 'from': leg.from.ident, 'to': leg.to.ident, predictedAltitude: predictedAltitudeAtEndOfLeg, distanceToToWaypoint: totalDistance, constraint: leg.altitudeConstraint?.altitude1, maxSpeed: this.findMaxSpeedAtDistanceAlongTrack(geometry, totalDistance), speedConstraint: leg.speedConstraint?.speed });
-                }
-            } else {
-                console.warn(`[FMS/VNAV] Invalid leg when printing flightplan`);
-            }
-
-            totalDistance -= leg.distance;
-        }
     }
 
     private interpolateAltitude(distanceFromStart: NauticalMiles, sortedCheckpoints: VerticalCheckpoint[]): Feet {
@@ -358,23 +322,6 @@ export class ClimbPathBuilder {
         });
     }
 
-    private isAltitudeConstraintMet(altitude: Feet, constraint?: AltitudeConstraint): boolean {
-        if (!constraint)
-            return true;
-
-        switch (constraint.type) {
-            case AltitudeConstraintType.at:
-                // TODO: Figure out actual condition when a constraint counts as "met"
-                return Math.abs(altitude - constraint.altitude1) < 100
-            case AltitudeConstraintType.atOrAbove:
-                return altitude - constraint.altitude1 < -1
-            case AltitudeConstraintType.atOrBelow:
-                return altitude - constraint.altitude1 < 1
-            case AltitudeConstraintType.range:
-                return altitude >= constraint.altitude1 && altitude <= constraint.altitude2
-        }
-    }
-
     private findMaxSpeedAtDistanceAlongTrack(geometry: Geometry, distanceAlongTrack: NauticalMiles): Knots {
         let mostRestrictiveSpeedLimit: Knots = Infinity;
         let distanceAlongTrackForStartOfLegWaypoint = this.computeTotalFlightPlanDistance(geometry);
@@ -426,18 +373,6 @@ export class ClimbPathBuilder {
         }
 
         return result
-    }
-
-    private findDistanceFromEndToEarliestLevelOffForRestriction(geometry: Geometry, checkpoints: VerticalCheckpoint[]): NauticalMiles | undefined {
-        const totalDistance = this.computeTotalFlightPlanDistance(geometry);
-
-        return totalDistance - checkpoints.find(checkpoint => checkpoint.reason === VerticalCheckpointReason.LevelOffForConstraint)?.distanceFromStart;
-    }
-
-    private findDistanceFromEndToEarliestContinueClimb(geometry: Geometry, checkpoints: VerticalCheckpoint[]): NauticalMiles | undefined {
-        const totalDistance = this.computeTotalFlightPlanDistance(geometry);
-
-        return totalDistance - checkpoints.find(checkpoint => checkpoint.reason === VerticalCheckpointReason.ContinueClimb)?.distanceFromStart;
     }
 }
 

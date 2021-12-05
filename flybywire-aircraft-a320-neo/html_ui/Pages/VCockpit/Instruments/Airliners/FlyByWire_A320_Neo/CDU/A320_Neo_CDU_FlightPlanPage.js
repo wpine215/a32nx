@@ -84,6 +84,7 @@ class CDUFlightPlanPage {
 
         // PWPs
         const fmsPseudoWaypoints = mcdu.guidanceController.currentPseudoWaypoints;
+        const altitudePredictionsMap = mcdu.guidanceController.vnavDriver.currentGeometryProfile.computePredictionsAtWaypoints();
 
         // Primary F-PLAN
         for (let i = first; i < fpm.getWaypointsCount(); i++) {
@@ -326,7 +327,16 @@ class CDUFlightPlanPage {
                     }
 
                     if (wp.legAltitudeDescription !== 0 && ident !== "(DECEL)") {
+                        const verticalWaypoint = altitudePredictionsMap.get(fpIndex);
+
                         altPrefix = "{magenta}*{end}";
+                        if (verticalWaypoint) {
+                            console.log(fpIndex, wp.ident, JSON.stringify(verticalWaypoint.isAltitudeConstraintMet));
+                            altPrefix = verticalWaypoint.isAltitudeConstraintMet ? "{magenta}*{end}" : "{amber}*{end}";
+                        } else {
+                            console.warn("Reverting to default altitude prediction display for", wp.ident);
+                        }
+
                         if (wp.legAltitudeDescription === 4) {
                             altitudeConstraint = ((wp.legAltitude1 + wp.legAltitude2) * 0.5).toFixed(0).toString();
                             altitudeConstraint = altitudeConstraint.padStart(5,"\xa0");
@@ -388,9 +398,25 @@ class CDUFlightPlanPage {
                         } else {
                             altitudeConstraint = `FL${mcdu.cruiseFlightLevel.toString().padStart(3,"0")}`;
                         }
-                    // Waypoint with no alt constraint
+                    // Waypoint with no alt constraint.
+                    // In this case `altitudeConstraint is actually just the predictedAltitude`
                     } else if (!wp.legAltitude1 && !wp.legAltitudeDescription) {
-                        altitudeConstraint = "-----";
+                        const verticalWaypoint = altitudePredictionsMap.get(fpIndex);
+
+                        if (verticalWaypoint && verticalWaypoint.altitude) {
+                            altitudeConstraint = verticalWaypoint.altitude;
+
+                            if (mcdu.transitionAltitude >= 100 && altitudeConstraint > mcdu.transitionAltitude) {
+                                altitudeConstraint = (altitudeConstraint / 100).toFixed(0).toString();
+                                altitudeConstraint = `FL${altitudeConstraint.padStart(3,"0")}`;
+                            } else {
+                                altitudeConstraint = (10 * Math.round(altitudeConstraint / 10)).toFixed(0).toString();
+                            }
+
+                        } else {
+                            console.warn("Reverting to default altitude prediction display for", wp.ident);
+                            altitudeConstraint = "-----";
+                        }
                     }
                 }
 

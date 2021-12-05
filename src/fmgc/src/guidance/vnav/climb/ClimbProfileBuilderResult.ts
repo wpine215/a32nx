@@ -1,4 +1,5 @@
 import { Feet, Knots, NauticalMiles } from "../../../../../../typings";
+import { GeometryProfile } from "../GeometryProfile";
 
 export enum VerticalCheckpointReason {
     Liftoff = "Liftoff",
@@ -23,6 +24,7 @@ export interface VerticalCheckpoint {
 
 export interface ClimbProfileBuilderResult {
     checkpoints: VerticalCheckpoint[],
+    geometryProfile: GeometryProfile,
     distanceToTopOfClimbFromEnd: NauticalMiles
     distanceToRestrictionLevelOffFromEnd?: NauticalMiles
     distanceToContinueClimbFromEnd?: NauticalMiles

@@ -28,9 +28,9 @@ export class PseudoWaypoints implements GuidanceComponent {
         const newPseudoWaypoints: PseudoWaypoint[] = [];
 
         if (VnavConfig.VNAV_CALCULATE_CLIMB_PROFILE) {
-            const { distanceToTopOfClimbFromEnd, distanceToRestrictionLevelOffFromEnd, distanceToContinueClimbFromEnd } = this.guidanceController.vnavDriver.currentClimbProfile;
+            const geometryProfile = this.guidanceController.vnavDriver.currentGeometryProfile;
 
-            const toc = PseudoWaypoints.pointFromEndOfPath(geometry, distanceToTopOfClimbFromEnd);
+            const toc = PseudoWaypoints.pointFromEndOfPath(geometry, geometryProfile.findDistanceToTopOfClimbFromEnd());
             if (toc) {
                 const [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = toc;
 
@@ -45,6 +45,7 @@ export class PseudoWaypoints implements GuidanceComponent {
                 });
             }
 
+            const distanceToRestrictionLevelOffFromEnd = geometryProfile.findDistanceFromEndToEarliestLevelOffForRestriction();
             if (distanceToRestrictionLevelOffFromEnd) {
                 const levelOff = PseudoWaypoints.pointFromEndOfPath(geometry, distanceToRestrictionLevelOffFromEnd);
                 if (levelOff) {
@@ -62,6 +63,7 @@ export class PseudoWaypoints implements GuidanceComponent {
                 }
             }
 
+            const distanceToContinueClimbFromEnd = geometryProfile.findDistanceFromEndToEarliestContinueClimb();
             if (distanceToContinueClimbFromEnd) {
                 const continueClimb = PseudoWaypoints.pointFromEndOfPath(geometry, distanceToContinueClimbFromEnd);
                 if (continueClimb) {
