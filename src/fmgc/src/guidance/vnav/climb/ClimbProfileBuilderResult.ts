@@ -1,3 +1,5 @@
+import { Feet, Knots, NauticalMiles } from "../../../../../../typings";
+
 export enum VerticalCheckpointReason {
     Liftoff = "Liftoff",
     ThrustReductionAltitude = "ThrustReductionAltitude",
@@ -12,16 +14,16 @@ export enum VerticalCheckpointReason {
 
 export interface VerticalCheckpoint {
     reason: VerticalCheckpointReason,
-    distanceFromStart: number,
-    altitude: number,
+    distanceFromStart: NauticalMiles,
+    altitude: Feet,
     predictedN1: number,
-    remainingFuelOnBoard: number
-    speed: number
+    remainingFuelOnBoard: number,
+    speed: Knots,
 }
 
 export interface ClimbProfileBuilderResult {
     checkpoints: VerticalCheckpoint[],
-    distanceToTopOfClimbFromEnd: number
-    distanceToRestrictionLevelOffFromEnd?: number
-    distanceToContinueClimbFromEnd?: number
+    distanceToTopOfClimbFromEnd: NauticalMiles
+    distanceToRestrictionLevelOffFromEnd?: NauticalMiles
+    distanceToContinueClimbFromEnd?: NauticalMiles
 }

@@ -184,14 +184,14 @@ export class Predictions {
         const stepTime = ((tas - headwind) / stepSize) / 60; // in minutes
         const fuelBurned = (fuelFlow / 60) * stepTime;
 
-        let result: StepResults;
-        result.pathAngle = 0;
-        result.verticalSpeed = 0;
-        result.timeElapsed = stepTime;
-        result.distanceTraveled = stepSize;
-        result.fuelBurned = fuelBurned;
-        result.finalAltitude = altitude;
-        return result;
+        return {
+            pathAngle: 0,
+            verticalSpeed: 0,
+            timeElapsed: stepTime,
+            distanceTraveled: stepSize,
+            fuelBurned: fuelBurned,
+            finalAltitude: altitude,
+        }
     }
 
     /**
