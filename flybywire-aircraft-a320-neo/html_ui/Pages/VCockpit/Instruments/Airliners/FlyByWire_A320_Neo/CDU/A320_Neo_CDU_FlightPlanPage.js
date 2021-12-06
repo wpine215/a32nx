@@ -84,7 +84,7 @@ class CDUFlightPlanPage {
 
         // PWPs
         const fmsPseudoWaypoints = mcdu.guidanceController.currentPseudoWaypoints;
-        const altitudePredictionsMap = mcdu.guidanceController.vnavDriver.currentGeometryProfile.computePredictionsAtWaypoints();
+        const vnavPredictionsMapByWaypoint = mcdu.guidanceController.vnavDriver.currentGeometryProfile.computePredictionsAtWaypoints();
 
         // Primary F-PLAN
         for (let i = first; i < fpm.getWaypointsCount(); i++) {
@@ -282,9 +282,20 @@ class CDUFlightPlanPage {
                 distance = distance.toString();
 
                 let speedConstraint = "---";
-                if (wp.speedConstraint > 10 && ident !== "MANUAL") {
-                    speedConstraint = `{magenta}*{end}${wp.speedConstraint.toFixed(0)}`;
+                let speedPrefix = "";
+
+                const verticalWaypoint = vnavPredictionsMapByWaypoint.get(fpIndex);
+                if (verticalWaypoint && verticalWaypoint.speed) {
+                    speedConstraint = Math.round(verticalWaypoint.speed);
+
+                    if (wp.speedConstraint > 10 && ident !== "MANUAL") {
+                        speedPrefix = verticalWaypoint.isSpeedConstraintMet ? "{magenta}*{end}" : "{amber}*{end}";
+                    }
+                } else if (wp.speedConstraint > 10 && ident !== "MANUAL") {
+                    speedPrefix = "{magenta}*{end}";
+                    speedConstraint = wp.speedConstraint;
                 }
+                speedConstraint = speedPrefix + speedConstraint;
 
                 let altColor = color;
                 let spdColor = color;
@@ -326,10 +337,18 @@ class CDUFlightPlanPage {
                         altitudeConstraint = wp.legAltitude1.toFixed(0).toString().padStart(5,"\xa0");
                     }
 
-                    if (wp.legAltitudeDescription !== 0 && ident !== "(DECEL)") {
-                        const verticalWaypoint = altitudePredictionsMap.get(fpIndex);
+                    if (verticalWaypoint && verticalWaypoint.altitude) {
+                        if (mcdu.transitionAltitude >= 100 && verticalWaypoint.altitude > mcdu.transitionAltitude) {
+                            altitudeConstraint = (verticalWaypoint.altitude / 100).toFixed(0).toString();
+                            altitudeConstraint = `FL${verticalWaypoint.altitude.padStart(3,"0")}`;
+                        } else {
+                            altitudeConstraint = (10 * Math.round(verticalWaypoint.altitude / 10)).toFixed(0).toString();
+                        }
+                    }
 
+                    if (wp.legAltitudeDescription !== 0 && ident !== "(DECEL)") {
                         altPrefix = "{magenta}*{end}";
+
                         if (verticalWaypoint) {
                             console.log(fpIndex, wp.ident, JSON.stringify(verticalWaypoint.isAltitudeConstraintMet));
                             altPrefix = verticalWaypoint.isAltitudeConstraintMet ? "{magenta}*{end}" : "{amber}*{end}";
@@ -337,10 +356,11 @@ class CDUFlightPlanPage {
                             console.warn("Reverting to default altitude prediction display for", wp.ident);
                         }
 
-                        if (wp.legAltitudeDescription === 4) {
-                            altitudeConstraint = ((wp.legAltitude1 + wp.legAltitude2) * 0.5).toFixed(0).toString();
-                            altitudeConstraint = altitudeConstraint.padStart(5,"\xa0");
-                        }
+                        // if (wp.legAltitudeDescription === 4) {
+                        //     altitudeConstraint = ((wp.legAltitude1 + wp.legAltitude2) * 0.5).toFixed(0).toString();
+                        //     altitudeConstraint = altitudeConstraint.padStart(5,"\xa0");
+                        // }
+
                         // TODO FIXME: remove this and replace with proper altitude constraint implementation
                         // Predict altitude for STAR when constraints are missing
                         /*
@@ -401,7 +421,7 @@ class CDUFlightPlanPage {
                     // Waypoint with no alt constraint.
                     // In this case `altitudeConstraint is actually just the predictedAltitude`
                     } else if (!wp.legAltitude1 && !wp.legAltitudeDescription) {
-                        const verticalWaypoint = altitudePredictionsMap.get(fpIndex);
+                        const verticalWaypoint = vnavPredictionsMapByWaypoint.get(fpIndex);
 
                         if (verticalWaypoint && verticalWaypoint.altitude) {
                             altitudeConstraint = verticalWaypoint.altitude;

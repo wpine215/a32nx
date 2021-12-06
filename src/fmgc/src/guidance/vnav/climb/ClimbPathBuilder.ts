@@ -358,7 +358,7 @@ export class ClimbPathBuilder {
             }
 
             if (leg.altitudeConstraint && leg.altitudeConstraint.type !== AltitudeConstraintType.atOrAbove) {
-                const constraintMaxAltitude = leg.altitudeConstraint.type === AltitudeConstraintType.range ? leg.altitudeConstraint.altitude2 : leg.altitudeConstraint.altitude1;
+                const constraintMaxAltitude = leg.altitudeConstraint.altitude1;
 
                 // TODO: We shouldn't actually ignore this constraint. Since it is closer to the origin, it should have priority.
                 if (constraintMaxAltitude < currentMaxAltitudeConstraint) {
