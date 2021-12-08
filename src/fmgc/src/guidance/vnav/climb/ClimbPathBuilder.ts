@@ -92,7 +92,6 @@ export class ClimbPathBuilder {
             reason: VerticalCheckpointReason.PresentPosition,
             distanceFromStart: this.computeDistanceFromOriginToPresentPosition(geometry),
             altitude,
-            predictedN1: SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT', 'Percent'),
             remainingFuelOnBoard: this.fmgc.getFOB() * ClimbPathBuilder.TONS_TO_POUNDS,
             speed: SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots'),
         });
@@ -126,7 +125,6 @@ export class ClimbPathBuilder {
             reason: VerticalCheckpointReason.ThrustReductionAltitude,
             distanceFromStart: checkpoints[checkpoints.length - 1].distanceFromStart + distanceTraveled,
             altitude: this.thrustReductionAltitude,
-            predictedN1,
             remainingFuelOnBoard: remainingFuelOnBoard - fuelBurned,
             speed,
         });
@@ -134,13 +132,12 @@ export class ClimbPathBuilder {
 
     private addAccelerationAltitudeStep(checkpoints: VerticalCheckpoint[], startingAltitude: Feet, targetAltitude: Feet, speed: Knots) {
         const remainingFuelOnBoard = checkpoints[checkpoints.length - 1].remainingFuelOnBoard;
-        const { predictedN1, fuelBurned, distanceTraveled } = this.computeClimbSegmentPrediction(startingAltitude, targetAltitude, speed, remainingFuelOnBoard);
+        const { fuelBurned, distanceTraveled } = this.computeClimbSegmentPrediction(startingAltitude, targetAltitude, speed, remainingFuelOnBoard);
 
         checkpoints.push({
             reason: VerticalCheckpointReason.AccelerationAltitude,
             distanceFromStart: checkpoints[checkpoints.length - 1].distanceFromStart + distanceTraveled,
             altitude: this.accelerationAltitude,
-            predictedN1,
             remainingFuelOnBoard: remainingFuelOnBoard - fuelBurned,
             speed,
         });
@@ -175,7 +172,6 @@ export class ClimbPathBuilder {
                     reason: VerticalCheckpointReason.ContinueClimb,
                     distanceFromStart: constraintDistanceFromStart,
                     altitude: checkpoints[checkpoints.length - 1].altitude,
-                    predictedN1: 0, // TODO
                     remainingFuelOnBoard: checkpoints[checkpoints.length - 1].remainingFuelOnBoard - fuelBurned,
                     speed: climbSpeed,
                 });
@@ -197,13 +193,12 @@ export class ClimbPathBuilder {
             const targetAltitudeForSegment = Math.min(altitude + 1500, targetAltitude);
             const remainingFuelOnBoard = checkpoints[checkpoints.length - 1].remainingFuelOnBoard;
 
-            const { predictedN1, distanceTraveled, fuelBurned } = this.computeClimbSegmentPrediction(altitude, targetAltitudeForSegment, climbSpeed, remainingFuelOnBoard);
+            const { distanceTraveled, fuelBurned } = this.computeClimbSegmentPrediction(altitude, targetAltitudeForSegment, climbSpeed, remainingFuelOnBoard);
 
             checkpoints.push({
                 reason: VerticalCheckpointReason.AtmosphericConditions,
                 distanceFromStart: distanceAtStartOfStep + distanceTraveled,
                 altitude: targetAltitudeForSegment,
-                predictedN1,
                 remainingFuelOnBoard: remainingFuelOnBoard - fuelBurned,
                 speed: climbSpeed,
             });
@@ -316,7 +311,6 @@ export class ClimbPathBuilder {
             reason: VerticalCheckpointReason.Liftoff,
             distanceFromStart: 0.6,
             altitude: this.airfieldElevation,
-            predictedN1: SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TOGA', 'Percent'),
             remainingFuelOnBoard,
             speed: this.fmgc.getV2Speed() + 10, // I know this is not perfectly accurate
         });
