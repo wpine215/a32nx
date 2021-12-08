@@ -112,7 +112,6 @@ class AutopilotStateMachineModelClass {
     boolean_T nav_gs_deg_not_empty;
     boolean_T prev_FDES_active;
     boolean_T prev_FDES_armed;
-    boolean_T prev_TCAS_active;
     boolean_T eventTime_not_empty;
     boolean_T eventTime_not_empty_k;
     boolean_T eventTime_not_empty_h;
@@ -305,6 +304,7 @@ class AutopilotStateMachineModelClass {
   boolean_T AutopilotStateMachine_TCAS_TO_ALT_CPT(void);
   boolean_T AutopilotStateMachine_TCAS_TO_VS(void);
   void AutopilotStateMachine_updateTcasTargetVerticalSpeed(boolean_T isEntry);
+  boolean_T AutopilotStateMachine_getTcasSubModeCompatibility(void);
   void AutopilotStateMachine_TCAS_during(void);
   void AutopilotStateMachine_TCAS_exit(void);
   void AutopilotStateMachine_OFF_entry_o(void);
@@ -333,7 +333,6 @@ class AutopilotStateMachineModelClass {
   void AutopilotStateMachine_ALT_CST_entry(void);
   void AutopilotStateMachine_ALT(void);
   void AutopilotStateMachine_ALT_CPT_during(void);
-  void AutopilotStateMachine_ALT_CPT(void);
   void AutopilotStateMachine_ALT_CST(void);
   void AutopilotStateMachine_ALT_CST_CPT(void);
   void AutopilotStateMachine_CLB_during(void);
