@@ -1,16 +1,16 @@
-import { Feet, Knots, NauticalMiles } from "../../../../../../typings";
-import { GeometryProfile } from "../GeometryProfile";
+import { Feet, Knots, NauticalMiles } from '../../../../../../typings';
+import { GeometryProfile } from '../GeometryProfile';
 
 export enum VerticalCheckpointReason {
-    Liftoff = "Liftoff",
-    ThrustReductionAltitude = "ThrustReductionAltitude",
-    AccelerationAltitude = "AccelerationAltitude",
-    TopOfClimb = "TopOfClimb",
-    AtmosphericConditions = "AtmosphericConditions",
-    PresentPosition = "PresentPosition",
-    LevelOffForConstraint = "LevelOffForConstraint",
-    WaypointWithConstraint = "WaypointWithConstraint",
-    ContinueClimb = "ContinueClimb",
+    Liftoff = 'Liftoff',
+    ThrustReductionAltitude = 'ThrustReductionAltitude',
+    AccelerationAltitude = 'AccelerationAltitude',
+    TopOfClimb = 'TopOfClimb',
+    AtmosphericConditions = 'AtmosphericConditions',
+    PresentPosition = 'PresentPosition',
+    LevelOffForConstraint = 'LevelOffForConstraint',
+    WaypointWithConstraint = 'WaypointWithConstraint',
+    ContinueClimb = 'ContinueClimb',
 }
 
 export interface VerticalCheckpoint {

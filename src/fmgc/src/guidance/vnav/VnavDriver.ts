@@ -5,16 +5,16 @@ import { TheoreticalDescentPathCharacteristics } from '@fmgc/guidance/vnav/desce
 import { DecelPathBuilder, DecelPathCharacteristics } from '@fmgc/guidance/vnav/descent/DecelPathBuilder';
 import { DescentBuilder } from '@fmgc/guidance/vnav/descent/DescentBuilder';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
+import { FlightPlanManager } from '@fmgc/flightplanning/FlightPlanManager';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { GeometryProfile } from './GeometryProfile';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
-import { ClimbProfileBuilderResult } from './climb/ClimbProfileBuilderResult';
 import { Fmgc } from '../GuidanceController';
-import { FlightPlanManager } from '@fmgc/flightplanning/FlightPlanManager';
 
 export class VnavDriver implements GuidanceComponent {
     climbPathBuilder: ClimbPathBuilder;
+
     currentGeometryProfile: GeometryProfile;
 
     currentDescentProfile: TheoreticalDescentPathCharacteristics

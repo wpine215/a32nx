@@ -1,9 +1,9 @@
-import { Feet, NauticalMiles } from "../../../../../typings";
-import { VerticalCheckpoint, VerticalCheckpointReason } from "./climb/ClimbProfileBuilderResult";
+import { Feet, NauticalMiles } from '../../../../../typings';
+import { VerticalCheckpoint, VerticalCheckpointReason } from './climb/ClimbProfileBuilderResult';
 import { Geometry } from '../Geometry';
-import { TFLeg } from "../lnav/legs/TF";
-import { RFLeg } from "../lnav/legs/RF";
-import { AltitudeConstraint, AltitudeConstraintType, SpeedConstraint, SpeedConstraintType } from "../lnav/legs";
+import { TFLeg } from '../lnav/legs/TF';
+import { RFLeg } from '../lnav/legs/RF';
+import { AltitudeConstraint, AltitudeConstraintType, SpeedConstraint, SpeedConstraintType } from '../lnav/legs';
 
 // I don't think this is here to stay
 interface VerticalWaypointPrediction {
@@ -20,7 +20,7 @@ export class GeometryProfile {
     private totalFlightPlanDistance: NauticalMiles = 0;
 
     constructor(private geometry: Geometry, private checkpoints: VerticalCheckpoint[]) {
-        this.checkpoints = [...checkpoints].sort((a, b) => a.distanceFromStart - b.distanceFromStart)
+        this.checkpoints = [...checkpoints].sort((a, b) => a.distanceFromStart - b.distanceFromStart);
 
         this.totalFlightPlanDistance = this.totalDistance();
 
@@ -31,7 +31,7 @@ export class GeometryProfile {
         let totalDistance = 0;
 
         for (const [i, leg] of this.geometry.legs.entries()) {
-            totalDistance += leg.distance
+            totalDistance += leg.distance;
         }
 
         return totalDistance;
@@ -49,7 +49,9 @@ export class GeometryProfile {
 
         for (let i = 0; i < this.checkpoints.length - 1; i++) {
             if (distanceFromStart >= this.checkpoints[i].distanceFromStart && distanceFromStart < this.checkpoints[i + 1].distanceFromStart) {
-                return this.checkpoints[i].altitude + (distanceFromStart - this.checkpoints[i].distanceFromStart) * (this.checkpoints[i + 1].altitude - this.checkpoints[i].altitude) / (this.checkpoints[i + 1].distanceFromStart - this.checkpoints[i].distanceFromStart);
+                return this.checkpoints[i].altitude
+                    + (distanceFromStart - this.checkpoints[i].distanceFromStart) * (this.checkpoints[i + 1].altitude - this.checkpoints[i].altitude)
+                    / (this.checkpoints[i + 1].distanceFromStart - this.checkpoints[i].distanceFromStart);
             }
         }
 
@@ -68,7 +70,9 @@ export class GeometryProfile {
 
         for (let i = 0; i < this.checkpoints.length - 1; i++) {
             if (distanceFromStart >= this.checkpoints[i].distanceFromStart && distanceFromStart < this.checkpoints[i + 1].distanceFromStart) {
-                return this.checkpoints[i].speed + (distanceFromStart - this.checkpoints[i].distanceFromStart) * (this.checkpoints[i + 1].speed - this.checkpoints[i].speed) / (this.checkpoints[i + 1].distanceFromStart - this.checkpoints[i].distanceFromStart);
+                return this.checkpoints[i].speed
+                    + (distanceFromStart - this.checkpoints[i].distanceFromStart) * (this.checkpoints[i + 1].speed - this.checkpoints[i].speed)
+                    / (this.checkpoints[i + 1].distanceFromStart - this.checkpoints[i].distanceFromStart);
             }
         }
 
@@ -87,7 +91,9 @@ export class GeometryProfile {
 
         for (let i = 0; i < this.checkpoints.length - 1; i++) {
             if (altitude >= this.checkpoints[i].altitude && altitude < this.checkpoints[i + 1].altitude) {
-                return this.checkpoints[i].distanceFromStart + (altitude - this.checkpoints[i].altitude) * (this.checkpoints[i + 1].distanceFromStart - this.checkpoints[i].distanceFromStart) / (this.checkpoints[i + 1].altitude - this.checkpoints[i].altitude);
+                return this.checkpoints[i].distanceFromStart
+                    + (altitude - this.checkpoints[i].altitude) * (this.checkpoints[i + 1].distanceFromStart - this.checkpoints[i].distanceFromStart)
+                    / (this.checkpoints[i + 1].altitude - this.checkpoints[i].altitude);
             }
         }
 
@@ -114,9 +120,9 @@ export class GeometryProfile {
                     isAltitudeConstraintMet: this.isAltitudeConstraintMet(predictedAltitudeAtEndOfLeg, leg.altitudeConstraint),
                     speedConstraint: leg.speedConstraint,
                     isSpeedConstraintMet: this.isSpeedConstraintMet(predictedSpeedAtEndOfLeg, leg.speedConstraint),
-                })
+                });
             } else {
-                console.warn(`[FMS/VNAV] Invalid leg when printing flightplan`);
+                console.warn('[FMS/VNAV] Invalid leg when printing flightplan');
             }
 
             totalDistance -= leg.distance;
@@ -126,15 +132,15 @@ export class GeometryProfile {
     }
 
     findDistanceToTopOfClimbFromEnd(): NauticalMiles | undefined {
-        return this.totalFlightPlanDistance - this.checkpoints.find(checkpoint => checkpoint.reason === VerticalCheckpointReason.TopOfClimb)?.distanceFromStart;
+        return this.totalFlightPlanDistance - this.checkpoints.find((checkpoint) => checkpoint.reason === VerticalCheckpointReason.TopOfClimb)?.distanceFromStart;
     }
 
     findDistanceFromEndToEarliestLevelOffForRestriction(): NauticalMiles | undefined {
-        return this.totalFlightPlanDistance - this.checkpoints.find(checkpoint => checkpoint.reason === VerticalCheckpointReason.LevelOffForConstraint)?.distanceFromStart;
+        return this.totalFlightPlanDistance - this.checkpoints.find((checkpoint) => checkpoint.reason === VerticalCheckpointReason.LevelOffForConstraint)?.distanceFromStart;
     }
 
     findDistanceFromEndToEarliestContinueClimb(): NauticalMiles | undefined {
-        return this.totalFlightPlanDistance - this.checkpoints.find(checkpoint => checkpoint.reason === VerticalCheckpointReason.ContinueClimb)?.distanceFromStart;
+        return this.totalFlightPlanDistance - this.checkpoints.find((checkpoint) => checkpoint.reason === VerticalCheckpointReason.ContinueClimb)?.distanceFromStart;
     }
 
     printPredictionsAtWaypoints() {
@@ -146,46 +152,73 @@ export class GeometryProfile {
                 const predictedSpeedAtEndOfLeg = this.interpolateSpeed(totalDistance);
 
                 if (this.isAltitudeConstraintMet(predictedAltitudeAtEndOfLeg, leg.altitudeConstraint)) {
-                    console.log({ i, 'from': leg.from.ident, 'to': leg.to.ident, predictedAltitude: predictedAltitudeAtEndOfLeg, predictedSpeed: predictedSpeedAtEndOfLeg, distanceToToWaypoint: totalDistance, constraint: leg.altitudeConstraint?.altitude1, speedConstraint: leg.speedConstraint?.speed });
+                    console.log({
+                        i,
+                        from: leg.from.ident,
+                        to: leg.to.ident,
+                        predictedAltitude: predictedAltitudeAtEndOfLeg,
+                        predictedSpeed: predictedSpeedAtEndOfLeg,
+                        distanceToToWaypoint: totalDistance,
+                        constraint: leg.altitudeConstraint?.altitude1,
+                        speedConstraint: leg.speedConstraint?.speed,
+                    });
                 } else {
-                    console.warn({ i, 'from': leg.from.ident, 'to': leg.to.ident, predictedAltitude: predictedAltitudeAtEndOfLeg, predictedSpeed: predictedSpeedAtEndOfLeg, distanceToToWaypoint: totalDistance, constraint: leg.altitudeConstraint?.altitude1, speedConstraint: leg.speedConstraint?.speed });
+                    console.warn({
+                        i,
+                        from: leg.from.ident,
+                        to: leg.to.ident,
+                        predictedAltitude: predictedAltitudeAtEndOfLeg,
+                        predictedSpeed: predictedSpeedAtEndOfLeg,
+                        distanceToToWaypoint: totalDistance,
+                        constraint: leg.altitudeConstraint?.altitude1,
+                        speedConstraint: leg.speedConstraint?.speed,
+                    });
                 }
             } else {
-                console.warn(`[FMS/VNAV] Invalid leg when printing flightplan`);
+                console.warn('[FMS/VNAV] Invalid leg when printing flightplan');
             }
 
             totalDistance -= leg.distance;
         }
     }
 
-    private isAltitudeConstraintMet(altitude: Feet, constraint?: AltitudeConstraint): boolean {
-        if (!constraint)
+    private isAltitudeConstraintMet(altitude: Feet,
+        constraint?: AltitudeConstraint): boolean {
+        if (!constraint) {
             return true;
+        }
 
         switch (constraint.type) {
-            case AltitudeConstraintType.at:
-                // TODO: Figure out actual condition when a constraint counts as "met"
-                return Math.abs(altitude - constraint.altitude1) < 250
-            case AltitudeConstraintType.atOrAbove:
-                return (altitude - constraint.altitude1) > -250
-            case AltitudeConstraintType.atOrBelow:
-                return (altitude - constraint.altitude1) < 250
-            case AltitudeConstraintType.range:
-                return (altitude - constraint.altitude2) > -250 && (altitude - constraint.altitude1) < 250
+        case AltitudeConstraintType.at:
+            // TODO: Figure out actual condition when a constraint counts as "met"
+            return Math.abs(altitude - constraint.altitude1) < 250;
+        case AltitudeConstraintType.atOrAbove:
+            return (altitude - constraint.altitude1) > -250;
+        case AltitudeConstraintType.atOrBelow:
+            return (altitude - constraint.altitude1) < 250;
+        case AltitudeConstraintType.range:
+            return (altitude - constraint.altitude2) > -250 && (altitude - constraint.altitude1) < 250;
+        default:
+            console.error('Invalid altitude constraint type');
+            return null;
         }
     }
 
     private isSpeedConstraintMet(speed: Feet, constraint?: SpeedConstraint): boolean {
-        if (!constraint)
+        if (!constraint) {
             return true;
+        }
 
         switch (constraint.type) {
-            case SpeedConstraintType.at:
-                return Math.abs(speed - constraint.speed) < 5;
-            case SpeedConstraintType.atOrBelow:
-                return speed - constraint.speed < 5;
-            case SpeedConstraintType.atOrAbove:
-                return speed - constraint.speed > -5
+        case SpeedConstraintType.at:
+            return Math.abs(speed - constraint.speed) < 5;
+        case SpeedConstraintType.atOrBelow:
+            return speed - constraint.speed < 5;
+        case SpeedConstraintType.atOrAbove:
+            return speed - constraint.speed > -5;
+        default:
+            console.error('Invalid altitude constraint type');
+            return null;
         }
     }
 }
