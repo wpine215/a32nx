@@ -31,6 +31,7 @@ export class ClimbPathBuilder {
     private perfFactor: number;
 
     constructor(private fmgc: Fmgc, private flightPlanManager: FlightPlanManager) {
+        // TODO: Hook this up to the actual MCDU field
         SimVar.SetSimVarValue('L:A32NX_STATUS_PERF_FACTOR', 'Percent', 0);
     }
 
@@ -49,8 +50,11 @@ export class ClimbPathBuilder {
     computeClimbPath(geometry: Geometry): GeometryProfile {
         const isOnGround = SimVar.GetSimVarValue('SIM ON GROUND', 'Bool');
 
-        const constraints = this.findMaxAltitudeConstraints(geometry);
-        console.log(constraints);
+        const altitudeConstraints = this.findMaxAltitudeConstraints(geometry);
+        const speedConstraints = this.findMaxSpeedConstraints(geometry);
+
+        console.log('altitude constraints:', altitudeConstraints);
+        console.log('speed constraints:', speedConstraints);
 
         if (!isOnGround) {
             return this.computeLivePrediction(geometry);
@@ -149,6 +153,10 @@ export class ClimbPathBuilder {
         for (const constraint of constraints) {
             const { maxAltitude: constraintAltitude, distanceFromStart: constraintDistanceFromStart } = constraint;
 
+            if (constraintAltitude >= finalAltitude) {
+                break;
+            }
+
             this.buildIteratedClimbSegment(geometry, checkpoints, checkpoints[checkpoints.length - 1].altitude, constraintAltitude);
 
             if (checkpoints[checkpoints.length - 1].distanceFromStart < constraintDistanceFromStart) {
@@ -213,14 +221,12 @@ export class ClimbPathBuilder {
      * @param remainingFuelOnBoard Remainging fuel on board at the start of the climb
      * @returns
      */
-    private computeClimbSegmentPrediction(startingAltitude: Feet, targetAltitude: Feet, climbSpeed: Knots, remainingFuelOnBoard: number): StepResults & { predictedN1: number } {
+    private computeClimbSegmentPrediction(startingAltitude: Feet, targetAltitude: Feet, climbSpeed: Knots, remainingFuelOnBoard: number): StepResults {
         const midwayAltitudeClimb = (startingAltitude + targetAltitude) / 2;
         const machClimb = this.atmosphericConditions.computeMachFromCas(midwayAltitudeClimb, climbSpeed);
 
         const selectedVs = SimVar.GetSimVarValue('L:A32NX_AUTOPILOT_VS_SELECTED', 'feet per minute');
         if (!SimVar.GetSimVarValue('L:A32NX_FCU_VS_MANAGED', 'Bool') && selectedVs > 0) {
-            console.log(`[FMS/VNAV] Predictions running with V/S ${selectedVs} fpm`);
-
             return Predictions.verticalSpeedStep(
                 startingAltitude,
                 targetAltitude,
@@ -234,27 +240,24 @@ export class ClimbPathBuilder {
             );
         }
 
-        console.log('[FMS/VNAV] Predictions running in managed mode');
-
         const estimatedTat = this.atmosphericConditions.totalAirTemperatureFromMach(midwayAltitudeClimb, machClimb);
         const predictedN1 = this.getClimbThrustN1Limit(estimatedTat, midwayAltitudeClimb);
 
-        return {
+        return Predictions.altitudeStep(
+            startingAltitude,
+            targetAltitude - startingAltitude,
+            climbSpeed,
+            machClimb,
             predictedN1,
-            ...Predictions.altitudeStep(startingAltitude,
-                targetAltitude - startingAltitude,
-                climbSpeed,
-                machClimb,
-                predictedN1,
-                this.fmgc.getZeroFuelWeight() * ClimbPathBuilder.TONS_TO_POUNDS,
-                remainingFuelOnBoard,
-                0,
-                this.atmosphericConditions.isaDeviation,
-                this.fmgc.getTropoPause(),
-                false,
-                FlapConf.CLEAN,
-                this.perfFactor),
-        };
+            this.fmgc.getZeroFuelWeight() * ClimbPathBuilder.TONS_TO_POUNDS,
+            remainingFuelOnBoard,
+            0,
+            this.atmosphericConditions.isaDeviation,
+            this.fmgc.getTropoPause(),
+            false,
+            FlapConf.CLEAN,
+            this.perfFactor
+        );
     }
 
     private computeLevelFlightSegmentPrediction(geometry: Geometry, stepSize: Feet, altitude: Feet, speed: Knots, fuelWeight: number): StepResults {
@@ -342,7 +345,6 @@ export class ClimbPathBuilder {
     private findMaxAltitudeConstraints(geometry: Geometry): MaxAltitudeConstraint[] {
         const result: MaxAltitudeConstraint[] = [];
         let distanceAlongTrackForStartOfLegWaypoint = this.computeTotalFlightPlanDistance(geometry);
-        let currentMaxAltitudeConstraint = Infinity;
 
         for (const [i, leg] of geometry.legs.entries()) {
             distanceAlongTrackForStartOfLegWaypoint -= leg.distance;
@@ -352,25 +354,47 @@ export class ClimbPathBuilder {
             }
 
             if (leg.altitudeConstraint && leg.altitudeConstraint.type !== AltitudeConstraintType.atOrAbove) {
-                const constraintMaxAltitude = leg.altitudeConstraint.altitude1;
-
-                // TODO: We shouldn't actually ignore this constraint. Since it is closer to the origin, it should have priority.
-                if (constraintMaxAltitude < currentMaxAltitudeConstraint) {
-                    result.push({
-                        distanceFromStart: distanceAlongTrackForStartOfLegWaypoint + leg.distance,
-                        maxAltitude: constraintMaxAltitude,
-                    });
-                }
-
-                currentMaxAltitudeConstraint = constraintMaxAltitude;
+                result.unshift({
+                    distanceFromStart: distanceAlongTrackForStartOfLegWaypoint + leg.distance,
+                    maxAltitude: leg.altitudeConstraint.altitude1,
+                });
             }
         }
 
-        return result;
+        // console.log('altitude constraints before filter:', result);
+        return result.filter((constraint, index, allConstraints) => index === 0 || constraint.maxAltitude > allConstraints[index - 1].maxAltitude);
+    }
+
+    private findMaxSpeedConstraints(geometry: Geometry): MaxSpeedConstraint[] {
+        const result: MaxSpeedConstraint[] = [];
+        let distanceAlongTrackForStartOfLegWaypoint = this.computeTotalFlightPlanDistance(geometry);
+
+        for (const [i, leg] of geometry.legs.entries()) {
+            distanceAlongTrackForStartOfLegWaypoint -= leg.distance;
+
+            if (leg.segment !== SegmentType.Origin && leg.segment !== SegmentType.Departure) {
+                continue;
+            }
+
+            if (leg.speedConstraint?.speed > 100 && leg.speedConstraint.type !== SpeedConstraintType.atOrAbove) {
+                result.unshift({
+                    distanceFromStart: distanceAlongTrackForStartOfLegWaypoint + leg.distance,
+                    maxSpeed: leg.speedConstraint.speed,
+                });
+            }
+        }
+
+        // console.log('speed constraints before filter:', result);
+        return result.filter((constraint, index, allConstraints) => index === 0 || constraint.maxSpeed > allConstraints[index - 1].maxSpeed);
     }
 }
 
 interface MaxAltitudeConstraint {
     distanceFromStart: NauticalMiles,
     maxAltitude: Feet,
+}
+
+interface MaxSpeedConstraint {
+    distanceFromStart: NauticalMiles,
+    maxSpeed: Feet,
 }

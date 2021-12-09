@@ -52,13 +52,13 @@ export class PseudoWaypoints implements GuidanceComponent {
                     const [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = levelOff;
 
                     newPseudoWaypoints.push({
-                        ident: "Level off",
+                        ident: 'Level off',
                         alongLegIndex,
                         distanceFromLegTermination,
                         efisSymbolFlag: NdSymbolTypeFlags.PwpLevelOffForRestriction,
                         efisSymbolLla,
                         displayedOnMcdu: false,
-                        stats: PseudoWaypoints.computePseudoWaypointStats("", geometry.legs.get(alongLegIndex), distanceFromLegTermination),
+                        stats: PseudoWaypoints.computePseudoWaypointStats('Level off', geometry.legs.get(alongLegIndex), distanceFromLegTermination),
                     });
                 }
             }
@@ -70,13 +70,34 @@ export class PseudoWaypoints implements GuidanceComponent {
                     const [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = continueClimb;
 
                     newPseudoWaypoints.push({
-                        ident: "Continue Climb",
+                        ident: 'Continue Climb',
                         alongLegIndex,
                         distanceFromLegTermination,
                         efisSymbolFlag: NdSymbolTypeFlags.PwpContinueClimb,
                         efisSymbolLla,
                         displayedOnMcdu: false,
-                        stats: PseudoWaypoints.computePseudoWaypointStats("", geometry.legs.get(alongLegIndex), distanceFromLegTermination),
+                        stats: PseudoWaypoints.computePseudoWaypointStats('Continue Climb', geometry.legs.get(alongLegIndex), distanceFromLegTermination),
+                    });
+                }
+            }
+
+            const speedChanges = geometryProfile.findDistancesFromEndToSpeedChanges();
+            console.log(`speedChanges: ${JSON.stringify(speedChanges)}`);
+
+            for (let i = 0; i < speedChanges.length; i++) {
+                const speedChange = PseudoWaypoints.pointFromEndOfPath(geometry, speedChanges[i]);
+
+                if (speedChange) {
+                    const [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = speedChange;
+
+                    newPseudoWaypoints.push({
+                        ident: `Speed change ${++i}`,
+                        alongLegIndex,
+                        distanceFromLegTermination,
+                        efisSymbolFlag: NdSymbolTypeFlags.SpeedChange,
+                        efisSymbolLla,
+                        displayedOnMcdu: false,
+                        stats: PseudoWaypoints.computePseudoWaypointStats(`Speed change ${i}`, geometry.legs.get(alongLegIndex), distanceFromLegTermination),
                     });
                 }
             }

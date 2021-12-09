@@ -383,30 +383,35 @@ const SymbolMarker: FC<SymbolMarkerProps> = memo(({ ident, x, y, type, constrain
     } else if (type & (NdSymbolTypeFlags.PwpTopOfClimb)) {
         showIdent = false;
         elements.push(
-                <>
-                    <path d="M -38, 20 l 17, -17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.8} className="shadow" />
+            <>
+                <path d="M -38, 20 l 17, -17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.8} className="shadow" />
 
-                    <path d="M -38, 20 l 17, -17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.5} className="Cyan" />
-                </>,
-            );
+                <path d="M -38, 20 l 17, -17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.5} className="Cyan" />
+            </>,
+        );
     } else if (type & (NdSymbolTypeFlags.PwpLevelOffForRestriction)) {
         showIdent = false;
         elements.push(
-                <>
-                    <path d="M -38, 20 l 17, -17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.8} className="shadow" />
+            <>
+                <path d="M -38, 20 l 17, -17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.8} className="shadow" />
 
-                    <path d="M -38, 20 l 17, -17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.5} className="Magenta" />
-                </>,
-            );
+                <path d="M -38, 20 l 17, -17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.5} className="Magenta" />
+            </>,
+        );
     } else if (type & (NdSymbolTypeFlags.PwpContinueClimb)) {
         showIdent = false;
         elements.push(
-                <>
-                    <path d="M 0, 3 h 21 l 17 -17 m -5, 0 l 5, 0 l 0, 5" strokeWidth={1.8} className="shadow" />
+            <>
+                <path d="M 0, 3 h 21 l 17 -17 m -5, 0 l 5, 0 l 0, 5" strokeWidth={1.8} className="shadow" />
 
-                    <path d="M 0, 3 h 21 l 17 -17 m -5, 0 l 5, 0 l 0, 5" strokeWidth={1.5} className="Cyan" />
-                </>,
-            );
+                <path d="M 0, 3 h 21 l 17 -17 m -5, 0 l 5, 0 l 0, 5" strokeWidth={1.5} className="Cyan" />
+            </>,
+        );
+    } else if (type & (NdSymbolTypeFlags.SpeedChange)) {
+        showIdent = false;
+        elements.push(
+            <circle cx={0} cy={0} r={7} className="Magenta Fill" />,
+        );
     }
 
     if (showIdent) {

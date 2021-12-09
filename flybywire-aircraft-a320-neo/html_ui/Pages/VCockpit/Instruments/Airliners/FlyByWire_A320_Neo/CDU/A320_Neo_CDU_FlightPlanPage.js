@@ -84,7 +84,12 @@ class CDUFlightPlanPage {
 
         // PWPs
         const fmsPseudoWaypoints = mcdu.guidanceController.currentPseudoWaypoints;
-        const vnavPredictionsMapByWaypoint = mcdu.guidanceController.vnavDriver.currentGeometryProfile.computePredictionsAtWaypoints();
+        const fmsGeometryProfile = mcdu.guidanceController.vnavDriver.currentGeometryProfile;
+
+        let vnavPredictionsMapByWaypoint = null;
+        if (fmsGeometryProfile) {
+            vnavPredictionsMapByWaypoint = fmsGeometryProfile.computePredictionsAtWaypoints();
+        }
 
         // Primary F-PLAN
         for (let i = first; i < fpm.getWaypointsCount(); i++) {
@@ -284,7 +289,11 @@ class CDUFlightPlanPage {
                 let speedConstraint = "---";
                 let speedPrefix = "";
 
-                const verticalWaypoint = vnavPredictionsMapByWaypoint.get(fpIndex);
+                let verticalWaypoint = null;
+                if (vnavPredictionsMapByWaypoint) {
+                    verticalWaypoint = vnavPredictionsMapByWaypoint.get(fpIndex);
+                }
+
                 if (verticalWaypoint && verticalWaypoint.speed) {
                     speedConstraint = Math.round(verticalWaypoint.speed);
 
@@ -350,7 +359,6 @@ class CDUFlightPlanPage {
                         altPrefix = "{magenta}*{end}";
 
                         if (verticalWaypoint) {
-                            console.log(fpIndex, wp.ident, JSON.stringify(verticalWaypoint.isAltitudeConstraintMet));
                             altPrefix = verticalWaypoint.isAltitudeConstraintMet ? "{magenta}*{end}" : "{amber}*{end}";
                         } else {
                             console.warn("Reverting to default altitude prediction display for", wp.ident);
@@ -420,7 +428,7 @@ class CDUFlightPlanPage {
                         }
                     // Waypoint with no alt constraint.
                     // In this case `altitudeConstraint is actually just the predictedAltitude`
-                    } else if (!wp.legAltitude1 && !wp.legAltitudeDescription) {
+                    } else if (vnavPredictionsMapByWaypoint && !wp.legAltitude1 && !wp.legAltitudeDescription) {
                         const verticalWaypoint = vnavPredictionsMapByWaypoint.get(fpIndex);
 
                         if (verticalWaypoint && verticalWaypoint.altitude) {
@@ -432,7 +440,6 @@ class CDUFlightPlanPage {
                             } else {
                                 altitudeConstraint = (10 * Math.round(altitudeConstraint / 10)).toFixed(0).toString();
                             }
-
                         } else {
                             console.warn("Reverting to default altitude prediction display for", wp.ident);
                             altitudeConstraint = "-----";
