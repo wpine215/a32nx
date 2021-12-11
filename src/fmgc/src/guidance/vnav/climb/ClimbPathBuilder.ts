@@ -30,6 +30,8 @@ export class ClimbPathBuilder {
 
     private perfFactor: number;
 
+    private fcuAltitude: Feet;
+
     constructor(private fmgc: Fmgc, private flightPlanManager: FlightPlanManager) {
         // TODO: Hook this up to the actual MCDU field
         SimVar.SetSimVarValue('L:A32NX_STATUS_PERF_FACTOR', 'Percent', 0);
@@ -43,6 +45,7 @@ export class ClimbPathBuilder {
         this.climbSpeedLimit = 250; // TODO: Make dynamic
         this.climbSpeedLimitAltitude = 10000; // TODO: Make dynamic
         this.perfFactor = SimVar.GetSimVarValue('L:A32NX_STATUS_PERF_FACTOR', 'Percent');
+        this.fcuAltitude = Simplane.getAutoPilotDisplayedAltitudeLockValue();
 
         this.atmosphericConditions.update();
     }
@@ -58,6 +61,10 @@ export class ClimbPathBuilder {
 
         if (!isOnGround) {
             return this.computeLivePrediction(geometry);
+        }
+
+        if (!this.canComputeProfile()) {
+            return null;
         }
 
         return this.computePreflightPrediction(geometry);
@@ -433,6 +440,10 @@ export class ClimbPathBuilder {
 
         // console.log('speed constraints before filter:', result);
         return result.filter((constraint, index, allConstraints) => index === 0 || constraint.maxSpeed > allConstraints[index - 1].maxSpeed);
+    }
+
+    private canComputeProfile(): boolean {
+        return this.fmgc.getV2Speed() > 0;
     }
 }
 
