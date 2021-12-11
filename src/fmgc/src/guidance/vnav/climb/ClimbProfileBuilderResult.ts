@@ -10,6 +10,7 @@ export enum VerticalCheckpointReason {
     LevelOffForConstraint = 'LevelOffForConstraint',
     WaypointWithConstraint = 'WaypointWithConstraint',
     ContinueClimb = 'ContinueClimb',
+    CrossingSpeedLimit = 'CrossingSpeedLimit',
 }
 
 export interface VerticalCheckpoint {

@@ -53,6 +53,7 @@ export enum NdSymbolTypeFlags {
     PwpTopOfClimb = 1 << 20,
     PwpLevelOffForRestriction = 1 << 21,
     PwpContinueClimb = 1 << 22,
+    PwpSpeedLimit = 1 << 23, // TODO: Figure out what to do with this. This allows me to put the SPD/LIM in the MCDU, but I might not want to show it on ND.
 }
 
 export interface NdSymbol {

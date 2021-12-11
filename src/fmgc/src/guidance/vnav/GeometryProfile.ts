@@ -142,11 +142,16 @@ export class GeometryProfile {
         return this.totalFlightPlanDistance - this.checkpoints.find((checkpoint) => checkpoint.reason === VerticalCheckpointReason.ContinueClimb)?.distanceFromStart;
     }
 
+    findDistanceFromEndToSpeedLimit(): NauticalMiles | undefined {
+        return this.totalFlightPlanDistance - this.checkpoints.find((checkpoint) => checkpoint.reason === VerticalCheckpointReason.CrossingSpeedLimit)?.distanceFromStart;
+    }
+
     // TODO: Make this not iterate over map
     findDistancesFromEndToSpeedChanges(): NauticalMiles[] {
         const result: NauticalMiles[] = [];
 
         const predictions = this.computePredictionsAtWaypoints();
+        console.log(predictions);
 
         for (const [i, prediction] of predictions) {
             if (!predictions.has(i + 1)) {

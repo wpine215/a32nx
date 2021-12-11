@@ -564,7 +564,7 @@ class CDUFlightPlanPage {
                     altitudeConstraint: { alt: "-----", altPrefix: "\xa0" },
                     timeCell: "----[s-text]",
                     timeColor: "white",
-                    fixAnnotation: "",
+                    fixAnnotation: pwp.ident === "(LIM)" ? "{green}(SPD){end}" : "",
                     bearingTrack: pwp.stats.bearingInFp,
                     isOverfly: false,
                 };

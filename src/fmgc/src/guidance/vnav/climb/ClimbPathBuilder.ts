@@ -70,7 +70,11 @@ export class ClimbPathBuilder {
         this.addTakeoffStepCheckpoint(checkpoints, this.airfieldElevation, this.thrustReductionAltitude);
         this.addAccelerationAltitudeStep(checkpoints, this.thrustReductionAltitude, this.accelerationAltitude, this.fmgc.getV2Speed() + 10);
 
-        this.addClimbSteps(geometry, checkpoints, this.accelerationAltitude, this.cruiseAltitude);
+        if (this.climbSpeedLimitAltitude > this.accelerationAltitude && this.climbSpeedLimitAltitude < this.cruiseAltitude) {
+            this.addClimbSteps(geometry, checkpoints, this.climbSpeedLimitAltitude, VerticalCheckpointReason.CrossingSpeedLimit);
+        }
+
+        this.addClimbSteps(geometry, checkpoints, this.cruiseAltitude, VerticalCheckpointReason.TopOfClimb);
 
         return new GeometryProfile(geometry, checkpoints);
     }
@@ -86,7 +90,11 @@ export class ClimbPathBuilder {
         const currentAltitude = SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
 
         this.addPresentPositionCheckpoint(geometry, checkpoints, currentAltitude);
-        this.addClimbSteps(geometry, checkpoints, currentAltitude, this.cruiseAltitude);
+        if (this.climbSpeedLimitAltitude > currentAltitude && this.climbSpeedLimitAltitude < this.cruiseAltitude) {
+            this.addClimbSteps(geometry, checkpoints, this.climbSpeedLimitAltitude, VerticalCheckpointReason.CrossingSpeedLimit);
+        }
+
+        this.addClimbSteps(geometry, checkpoints, this.cruiseAltitude, VerticalCheckpointReason.TopOfClimb);
 
         return new GeometryProfile(geometry, checkpoints);
     }
@@ -147,7 +155,7 @@ export class ClimbPathBuilder {
         });
     }
 
-    private addClimbSteps(geometry: Geometry, checkpoints: VerticalCheckpoint[], startingAltitude: Feet, finalAltitude: Feet) {
+    private addClimbSteps(geometry: Geometry, checkpoints: VerticalCheckpoint[], finalAltitude: Feet, finalAltitudeReason: VerticalCheckpointReason = VerticalCheckpointReason.AtmosphericConditions) {
         const constraints = this.findMaxAltitudeConstraints(geometry);
 
         for (const constraint of constraints) {
@@ -157,11 +165,46 @@ export class ClimbPathBuilder {
                 break;
             }
 
-            this.buildIteratedClimbSegment(geometry, checkpoints, checkpoints[checkpoints.length - 1].altitude, constraintAltitude);
+            if (checkpoints[checkpoints.length - 1].altitude > constraintAltitude) {
+                continue;
+            }
 
-            if (checkpoints[checkpoints.length - 1].distanceFromStart < constraintDistanceFromStart) {
-                checkpoints[checkpoints.length - 1].reason = VerticalCheckpointReason.LevelOffForConstraint;
+            if (constraintAltitude > checkpoints[checkpoints.length - 1].altitude) {
+                // Continue climb
+                if (checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.WaypointWithConstraint || checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.LevelOffForConstraint) {
+                    checkpoints[checkpoints.length - 1].reason = VerticalCheckpointReason.ContinueClimb
+                }
 
+                this.buildIteratedClimbSegment(geometry, checkpoints, checkpoints[checkpoints.length - 1].altitude, constraintAltitude);
+
+                // We reach the target altitude before the constraint, so we insert a level segment.
+                if (checkpoints[checkpoints.length - 1].distanceFromStart < constraintDistanceFromStart) {
+                    checkpoints[checkpoints.length - 1].reason = VerticalCheckpointReason.LevelOffForConstraint;
+
+                    const altitude = checkpoints[checkpoints.length - 1].altitude;
+                    const climbSpeed = Math.min(
+                        altitude > this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
+                        this.findMaxSpeedAtDistanceAlongTrack(geometry, constraintDistanceFromStart),
+                    );
+
+                    const { fuelBurned } = this.computeLevelFlightSegmentPrediction(
+                        geometry,
+                        constraintDistanceFromStart - checkpoints[checkpoints.length - 1].distanceFromStart,
+                        altitude,
+                        climbSpeed,
+                        checkpoints[checkpoints.length - 1].remainingFuelOnBoard,
+                    );
+
+                    checkpoints.push({
+                        reason: VerticalCheckpointReason.WaypointWithConstraint,
+                        distanceFromStart: constraintDistanceFromStart,
+                        altitude: checkpoints[checkpoints.length - 1].altitude,
+                        remainingFuelOnBoard: checkpoints[checkpoints.length - 1].remainingFuelOnBoard - fuelBurned,
+                        speed: climbSpeed,
+                    });
+                }
+            } else {
+                // Continue in level flight to the next constraint
                 const altitude = checkpoints[checkpoints.length - 1].altitude;
                 const climbSpeed = Math.min(
                     altitude > this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
@@ -177,7 +220,7 @@ export class ClimbPathBuilder {
                 );
 
                 checkpoints.push({
-                    reason: VerticalCheckpointReason.ContinueClimb,
+                    reason: VerticalCheckpointReason.WaypointWithConstraint,
                     distanceFromStart: constraintDistanceFromStart,
                     altitude: checkpoints[checkpoints.length - 1].altitude,
                     remainingFuelOnBoard: checkpoints[checkpoints.length - 1].remainingFuelOnBoard - fuelBurned,
@@ -186,8 +229,12 @@ export class ClimbPathBuilder {
             }
         }
 
+        if (checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.WaypointWithConstraint || checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.LevelOffForConstraint) {
+            checkpoints[checkpoints.length - 1].reason = VerticalCheckpointReason.ContinueClimb
+        }
+
         this.buildIteratedClimbSegment(geometry, checkpoints, checkpoints[checkpoints.length - 1].altitude, finalAltitude);
-        checkpoints[checkpoints.length - 1].reason = VerticalCheckpointReason.TopOfClimb;
+        checkpoints[checkpoints.length - 1].reason = finalAltitudeReason;
     }
 
     private buildIteratedClimbSegment(geometry: Geometry, checkpoints: VerticalCheckpoint[], startingAltitude: Feet, targetAltitude: Feet): void {
@@ -362,7 +409,7 @@ export class ClimbPathBuilder {
         }
 
         // console.log('altitude constraints before filter:', result);
-        return result.filter((constraint, index, allConstraints) => index === 0 || constraint.maxAltitude > allConstraints[index - 1].maxAltitude);
+        return result.filter((constraint, index, allConstraints) => index === 0 || constraint.maxAltitude >= allConstraints[index - 1].maxAltitude);
     }
 
     private findMaxSpeedConstraints(geometry: Geometry): MaxSpeedConstraint[] {

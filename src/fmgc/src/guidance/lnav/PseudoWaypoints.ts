@@ -11,6 +11,7 @@ import { LateralMode } from '@shared/autopilot';
 import { NauticalMiles } from '../../../../../typings';
 
 const PWP_IDENT_TOC = '(T/C)';
+const PWP_IDENT_SPD_LIM = '(LIM)';
 const PWP_IDENT_TOD = '(T/D)';
 const PWP_IDENT_DECEL = '(DECEL)';
 const PWP_IDENT_FLAP1 = '(FLAP1)';
@@ -91,13 +92,33 @@ export class PseudoWaypoints implements GuidanceComponent {
                     const [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = speedChange;
 
                     newPseudoWaypoints.push({
-                        ident: `Speed change ${++i}`,
+                        ident: `Speed change ${i}`,
                         alongLegIndex,
                         distanceFromLegTermination,
                         efisSymbolFlag: NdSymbolTypeFlags.SpeedChange,
                         efisSymbolLla,
                         displayedOnMcdu: false,
                         stats: PseudoWaypoints.computePseudoWaypointStats(`Speed change ${i}`, geometry.legs.get(alongLegIndex), distanceFromLegTermination),
+                    });
+                }
+            }
+
+            const distanceFromEndToSpeedLimit = geometryProfile.findDistanceFromEndToSpeedLimit();
+
+            if (distanceFromEndToSpeedLimit) {
+                const speedLimit = PseudoWaypoints.pointFromEndOfPath(geometry, distanceFromEndToSpeedLimit);
+
+                if (speedLimit) {
+                    const [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = speedLimit;
+
+                    newPseudoWaypoints.push({
+                        ident: PWP_IDENT_SPD_LIM,
+                        alongLegIndex,
+                        distanceFromLegTermination,
+                        efisSymbolFlag: NdSymbolTypeFlags.PwpSpeedLimit,
+                        efisSymbolLla,
+                        displayedOnMcdu: true,
+                        stats: PseudoWaypoints.computePseudoWaypointStats(PWP_IDENT_SPD_LIM, geometry.legs.get(alongLegIndex), distanceFromLegTermination),
                     });
                 }
             }
