@@ -374,26 +374,17 @@ export class ClimbPathBuilder {
     }
 
     private findMaxSpeedAtDistanceAlongTrack(geometry: Geometry, distanceAlongTrack: NauticalMiles): Knots {
-        let mostRestrictiveSpeedLimit: Knots = Infinity;
-        let distanceAlongTrackForStartOfLegWaypoint = this.computeTotalFlightPlanDistance(geometry);
+        const constraints = this.findMaxSpeedConstraints(geometry);
 
-        for (const [i, leg] of geometry.legs.entries()) {
-            distanceAlongTrackForStartOfLegWaypoint -= leg.distance;
+        let maxSpeed = Infinity;
 
-            if (distanceAlongTrackForStartOfLegWaypoint + leg.distance < distanceAlongTrack) {
-                break;
-            }
-
-            if (leg.segment !== SegmentType.Origin && leg.segment !== SegmentType.Departure) {
-                continue;
-            }
-
-            if (leg.speedConstraint?.speed > 100 && (leg.speedConstraint.type === SpeedConstraintType.atOrBelow || leg.speedConstraint.type === SpeedConstraintType.at)) {
-                mostRestrictiveSpeedLimit = Math.min(mostRestrictiveSpeedLimit, leg.speedConstraint.speed);
+        for (const constraint of constraints) {
+            if (distanceAlongTrack <= constraint.distanceFromStart && constraint.maxSpeed < maxSpeed) {
+                maxSpeed = constraint.maxSpeed;
             }
         }
 
-        return mostRestrictiveSpeedLimit;
+        return maxSpeed;
     }
 
     private findMaxAltitudeConstraints(geometry: Geometry): MaxAltitudeConstraint[] {
@@ -439,7 +430,7 @@ export class ClimbPathBuilder {
         }
 
         // console.log('speed constraints before filter:', result);
-        return result.filter((constraint, index, allConstraints) => index === 0 || constraint.maxSpeed > allConstraints[index - 1].maxSpeed);
+        return result.filter((constraint, index, allConstraints) => index === 0 || constraint.maxSpeed >= allConstraints[index - 1].maxSpeed);
     }
 
     private canComputeProfile(): boolean {
