@@ -14,7 +14,7 @@ export class AtmosphericConditions {
 
     update() {
         this.ambientTemperatureFromSim = SimVar.GetSimVarValue('AMBIENT TEMPERATURE', 'celsius');
-        this.altitudeFromSim = SimVar.GetSimVarValue('INDICATED ALTITUDE', 'celsius');
+        this.altitudeFromSim = SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet');
 
         this.computedIsaDeviation = this.ambientTemperatureFromSim - Common.getIsaTemp(this.altitudeFromSim);
     }

@@ -172,13 +172,9 @@ export class ClimbPathBuilder {
                 break;
             }
 
-            if (checkpoints[checkpoints.length - 1].altitude > constraintAltitude) {
-                continue;
-            }
-
             if (constraintAltitude > checkpoints[checkpoints.length - 1].altitude) {
                 // Continue climb
-                if (checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.WaypointWithConstraint || checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.LevelOffForConstraint) {
+                if (checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.WaypointWithConstraint) {
                     checkpoints[checkpoints.length - 1].reason = VerticalCheckpointReason.ContinueClimb
                 }
 
@@ -188,55 +184,15 @@ export class ClimbPathBuilder {
                 if (checkpoints[checkpoints.length - 1].distanceFromStart < constraintDistanceFromStart) {
                     checkpoints[checkpoints.length - 1].reason = VerticalCheckpointReason.LevelOffForConstraint;
 
-                    const altitude = checkpoints[checkpoints.length - 1].altitude;
-                    const climbSpeed = Math.min(
-                        altitude > this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
-                        this.findMaxSpeedAtDistanceAlongTrack(geometry, constraintDistanceFromStart),
-                    );
-
-                    const { fuelBurned } = this.computeLevelFlightSegmentPrediction(
-                        geometry,
-                        constraintDistanceFromStart - checkpoints[checkpoints.length - 1].distanceFromStart,
-                        altitude,
-                        climbSpeed,
-                        checkpoints[checkpoints.length - 1].remainingFuelOnBoard,
-                    );
-
-                    checkpoints.push({
-                        reason: VerticalCheckpointReason.WaypointWithConstraint,
-                        distanceFromStart: constraintDistanceFromStart,
-                        altitude: checkpoints[checkpoints.length - 1].altitude,
-                        remainingFuelOnBoard: checkpoints[checkpoints.length - 1].remainingFuelOnBoard - fuelBurned,
-                        speed: climbSpeed,
-                    });
+                    this.addLevelSegmentSteps(geometry, checkpoints, constraintDistanceFromStart);
                 }
-            } else {
+            } else if (Math.abs(checkpoints[checkpoints.length - 1].altitude - constraintAltitude) < 1) {
                 // Continue in level flight to the next constraint
-                const altitude = checkpoints[checkpoints.length - 1].altitude;
-                const climbSpeed = Math.min(
-                    altitude > this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
-                    this.findMaxSpeedAtDistanceAlongTrack(geometry, constraintDistanceFromStart),
-                );
-
-                const { fuelBurned } = this.computeLevelFlightSegmentPrediction(
-                    geometry,
-                    constraintDistanceFromStart - checkpoints[checkpoints.length - 1].distanceFromStart,
-                    altitude,
-                    climbSpeed,
-                    checkpoints[checkpoints.length - 1].remainingFuelOnBoard,
-                );
-
-                checkpoints.push({
-                    reason: VerticalCheckpointReason.WaypointWithConstraint,
-                    distanceFromStart: constraintDistanceFromStart,
-                    altitude: checkpoints[checkpoints.length - 1].altitude,
-                    remainingFuelOnBoard: checkpoints[checkpoints.length - 1].remainingFuelOnBoard - fuelBurned,
-                    speed: climbSpeed,
-                });
+                this.addLevelSegmentSteps(geometry, checkpoints, constraintDistanceFromStart);
             }
         }
 
-        if (checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.WaypointWithConstraint || checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.LevelOffForConstraint) {
+        if (checkpoints[checkpoints.length - 1].reason === VerticalCheckpointReason.WaypointWithConstraint) {
             checkpoints[checkpoints.length - 1].reason = VerticalCheckpointReason.ContinueClimb
         }
 
@@ -248,7 +204,7 @@ export class ClimbPathBuilder {
         for (let altitude = startingAltitude; altitude < targetAltitude; altitude = Math.min(altitude + 1500, targetAltitude)) {
             const distanceAtStartOfStep = checkpoints[checkpoints.length - 1].distanceFromStart;
             const climbSpeed = Math.min(
-                altitude > this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
+                altitude >= this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
                 this.findMaxSpeedAtDistanceAlongTrack(geometry, distanceAtStartOfStep),
             );
 
@@ -262,9 +218,73 @@ export class ClimbPathBuilder {
                 distanceFromStart: distanceAtStartOfStep + distanceTraveled,
                 altitude: targetAltitudeForSegment,
                 remainingFuelOnBoard: remainingFuelOnBoard - fuelBurned,
-                speed: climbSpeed,
+                speed: Math.min(
+                    altitude >= this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
+                    this.findMaxSpeedAtDistanceAlongTrack(geometry, distanceAtStartOfStep + distanceTraveled),
+                ),
             });
         }
+    }
+
+    private addLevelSegmentSteps(geometry: Geometry, checkpoints: VerticalCheckpoint[], toDistanceFromStart: NauticalMiles): void {
+        // The only reason we have to build this iteratively is because there could be speed constraints along the way
+        const speedConstraints = this.findMaxSpeedConstraints(geometry);
+        const altitude = checkpoints[checkpoints.length - 1].altitude;
+
+        let distanceAlongPath = checkpoints[checkpoints.length - 1].distanceFromStart;
+
+        // Go over all constraints
+        for (const speedConstraint of speedConstraints) {
+            // Ignore constraint since we're already past it
+            if (distanceAlongPath >= speedConstraint.distanceFromStart || toDistanceFromStart <= speedConstraint.distanceFromStart) {
+                continue;
+            }
+
+            distanceAlongPath = speedConstraint.distanceFromStart
+
+            const speed = Math.min(
+                altitude >= this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
+                speedConstraint.maxSpeed,
+            );
+
+            const { fuelBurned } = this.computeLevelFlightSegmentPrediction(
+                geometry,
+                distanceAlongPath - checkpoints[checkpoints.length - 1].distanceFromStart,
+                altitude,
+                speed,
+                checkpoints[checkpoints.length - 1].remainingFuelOnBoard,
+            );
+
+            checkpoints.push({
+                reason: VerticalCheckpointReason.WaypointWithConstraint,
+                distanceFromStart: distanceAlongPath,
+                altitude,
+                remainingFuelOnBoard: checkpoints[checkpoints.length - 1].remainingFuelOnBoard - fuelBurned,
+                speed,
+            });
+        }
+
+        // Move from last constraint to target distance from start
+        const speed = Math.min(
+            altitude >= this.climbSpeedLimitAltitude ? this.fmgc.getManagedClimbSpeed() : this.climbSpeedLimit,
+            this.findMaxSpeedAtDistanceAlongTrack(geometry, toDistanceFromStart)
+        );
+
+        const { fuelBurned } = this.computeLevelFlightSegmentPrediction(
+            geometry,
+            toDistanceFromStart - checkpoints[checkpoints.length - 1].distanceFromStart,
+            altitude,
+            speed,
+            checkpoints[checkpoints.length - 1].remainingFuelOnBoard,
+        );
+
+        checkpoints.push({
+            reason: VerticalCheckpointReason.WaypointWithConstraint,
+            distanceFromStart: toDistanceFromStart,
+            altitude,
+            remainingFuelOnBoard: checkpoints[checkpoints.length - 1].remainingFuelOnBoard - fuelBurned,
+            speed,
+        });
     }
 
     /**

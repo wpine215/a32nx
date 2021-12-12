@@ -64,17 +64,30 @@ export class GeometryProfile {
      * @returns Predicted altitude
      */
     private findSpeedTarget(distanceFromStart: NauticalMiles): Feet {
-        if (distanceFromStart < this.checkpoints[0].distanceFromStart) {
-            return this.checkpoints[0].speed;
+        // We check for this because there is no speed change point upon reaching acceleration altitude.
+        const indexOfAccelerationAltitudeCheckpoint = Math.min(this.checkpoints.length - 1, Math.max(this.checkpoints.findIndex(({ reason }) => reason === VerticalCheckpointReason.AccelerationAltitude) + 1, 0));
+
+        if (distanceFromStart < this.checkpoints[indexOfAccelerationAltitudeCheckpoint].distanceFromStart) {
+            return this.checkpoints[indexOfAccelerationAltitudeCheckpoint].speed;
         }
 
-        for (let i = 0; i < this.checkpoints.length - 2; i++) {
-            if (distanceFromStart >= this.checkpoints[i].distanceFromStart && distanceFromStart < this.checkpoints[i + 1].distanceFromStart) {
-                return this.checkpoints[i].speed;
+        for (let i = indexOfAccelerationAltitudeCheckpoint; i < this.checkpoints.length - 1; i++) {
+            if (distanceFromStart > this.checkpoints[i].distanceFromStart && distanceFromStart <= this.checkpoints[i + 1].distanceFromStart) {
+                return this.checkpoints[i + 1].speed;
             }
         }
 
         return this.checkpoints[this.checkpoints.length - 1].speed;
+    }
+
+    private hasSpeedChange(distanceFromStart: NauticalMiles, maxSpeed: Knots): boolean {
+        for (let i = 0; i < this.checkpoints.length; i++) {
+            if (distanceFromStart >= this.checkpoints[i].distanceFromStart && distanceFromStart < this.checkpoints[i + 1].distanceFromStart) {
+                return this.checkpoints[i + 1].speed > maxSpeed;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -146,6 +159,17 @@ export class GeometryProfile {
         return this.totalFlightPlanDistance - this.checkpoints.find((checkpoint) => checkpoint.reason === VerticalCheckpointReason.CrossingSpeedLimit)?.distanceFromStart;
     }
 
+    // TODO: We shouldn't have to go looking for this here...
+    // This logic probably belongs to `ClimbPathBuilder`.
+    findSpeedLimit(): [NauticalMiles, Knots] | undefined {
+        const speedLimit = this.checkpoints.find((checkpoint) => checkpoint.reason === VerticalCheckpointReason.CrossingSpeedLimit);
+
+        if (!speedLimit)
+            return undefined;
+
+        return [speedLimit.distanceFromStart, speedLimit.speed];
+    }
+
     // TODO: Make this not iterate over map
     findDistancesFromEndToSpeedChanges(): NauticalMiles[] {
         const result: NauticalMiles[] = [];
@@ -153,13 +177,23 @@ export class GeometryProfile {
         const predictions = this.computePredictionsAtWaypoints();
         console.log(predictions);
 
+        const [speedLimitDistance, speedLimitSpeed] = this.findSpeedLimit();
+
         for (const [i, prediction] of predictions) {
             if (!predictions.has(i + 1)) {
                 continue;
             }
 
-            if (predictions.get(i + 1).speed > prediction.speed) {
-                result.push(this.totalFlightPlanDistance - prediction.distanceFromStart);
+            if (prediction.distanceFromStart < speedLimitDistance && predictions.get(i + 1).distanceFromStart > speedLimitDistance) {
+                if (speedLimitSpeed < predictions.get(i + 1).speed) {
+                    result.push(this.totalFlightPlanDistance - speedLimitDistance);
+                }
+            }
+
+            if (prediction.speedConstraint && prediction.speedConstraint.speed > 100) {
+                if (this.hasSpeedChange(prediction.distanceFromStart, prediction.speedConstraint.speed)) {
+                    result.push(this.totalFlightPlanDistance - prediction.distanceFromStart);
+                }
             }
         }
 
