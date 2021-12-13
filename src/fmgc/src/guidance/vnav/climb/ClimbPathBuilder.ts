@@ -82,6 +82,7 @@ export class ClimbPathBuilder {
         }
 
         this.addClimbSteps(geometry, checkpoints, this.cruiseAltitude, VerticalCheckpointReason.TopOfClimb);
+        this.addSpeedConstraintsAsCheckpoints(checkpoints, geometry);
 
         return new GeometryProfile(geometry, checkpoints);
     }
@@ -102,6 +103,7 @@ export class ClimbPathBuilder {
         }
 
         this.addClimbSteps(geometry, checkpoints, this.cruiseAltitude, VerticalCheckpointReason.TopOfClimb);
+        this.addSpeedConstraintsAsCheckpoints(checkpoints, geometry);
 
         return new GeometryProfile(geometry, checkpoints);
     }
@@ -426,7 +428,6 @@ export class ClimbPathBuilder {
             }
         }
 
-        // console.log('altitude constraints before filter:', result);
         return result.filter((constraint, index, allConstraints) => index === 0 || constraint.maxAltitude >= allConstraints[index - 1].maxAltitude);
     }
 
@@ -456,14 +457,88 @@ export class ClimbPathBuilder {
     private canComputeProfile(): boolean {
         return this.fmgc.getV2Speed() > 0;
     }
+
+    /**
+     * TODO: Extract this as common function in this and GeometryProfile
+     * Find the altitude at which the profile predicts us to be at a distance along the flightplan.
+     * @param distanceFromStart Distance along that path
+     * @returns Predicted altitude
+     */
+    private interpolateAltitude(checkpoints: VerticalCheckpoint[], distanceFromStart: NauticalMiles): Feet {
+        if (distanceFromStart < checkpoints[0].distanceFromStart) {
+            return checkpoints[0].altitude;
+        }
+
+        for (let i = 0; i < checkpoints.length - 1; i++) {
+            if (distanceFromStart >= checkpoints[i].distanceFromStart && distanceFromStart < checkpoints[i + 1].distanceFromStart) {
+                return checkpoints[i].altitude
+                    + (distanceFromStart - checkpoints[i].distanceFromStart) * (checkpoints[i + 1].altitude - checkpoints[i].altitude)
+                    / (checkpoints[i + 1].distanceFromStart - checkpoints[i].distanceFromStart);
+            }
+        }
+
+        return checkpoints[checkpoints.length - 1].altitude;
+    }
+
+    /**
+     * TODO: Extract this as common function in this and GeometryProfile
+     * Find the remaining fuel on board at which the profile predicts us to be at a distance along the flightplan.
+     * @param distanceFromStart Distance along that path
+     * @returns Predicted fuel on board
+     */
+    private interpolateRemainingFuelOnboard(checkpoints: VerticalCheckpoint[], distanceFromStart: NauticalMiles): number {
+        if (distanceFromStart < checkpoints[0].distanceFromStart) {
+            return checkpoints[0].remainingFuelOnBoard;
+        }
+
+        for (let i = 0; i < checkpoints.length - 1; i++) {
+            if (distanceFromStart >= checkpoints[i].distanceFromStart && distanceFromStart < checkpoints[i + 1].distanceFromStart) {
+                return checkpoints[i + 1].remainingFuelOnBoard
+                    - (distanceFromStart - checkpoints[i].distanceFromStart) * (checkpoints[i].remainingFuelOnBoard - checkpoints[i + 1].remainingFuelOnBoard)
+                    / (checkpoints[i + 1].distanceFromStart - checkpoints[i].distanceFromStart);
+            }
+        }
+
+        return checkpoints[checkpoints.length - 1].remainingFuelOnBoard;
+    }
+
+    private addSpeedConstraintsAsCheckpoints(checkpoints: VerticalCheckpoint[], geometry: Geometry): void {
+        const speedConstraints = this.findMaxSpeedConstraints(geometry);
+
+        for (const { distanceFromStart, maxSpeed } of speedConstraints) {
+            this.addCheckpointInCorrectPosition(checkpoints, {
+                reason: VerticalCheckpointReason.SpeedConstraint,
+                distanceFromStart,
+                altitude: this.interpolateAltitude(checkpoints, distanceFromStart),
+                remainingFuelOnBoard: this.interpolateRemainingFuelOnboard(checkpoints, distanceFromStart),
+                speed: maxSpeed,
+            })
+        }
+    }
+
+    private addCheckpointInCorrectPosition(checkpoints: VerticalCheckpoint[], checkpointToAdd: VerticalCheckpoint) {
+        if (checkpointToAdd.distanceFromStart < checkpoints[0].distanceFromStart) {
+            checkpoints.unshift(checkpointToAdd);
+            return;
+        }
+
+        for (let i = 0; i < checkpoints.length; i++) {
+            if (checkpointToAdd.distanceFromStart > checkpoints[i].distanceFromStart && checkpointToAdd.distanceFromStart <= checkpoints[i + 1].distanceFromStart) {
+                checkpoints.splice(i + 1, 0, checkpointToAdd);
+                return;
+            }
+        }
+
+        checkpoints.push(checkpointToAdd);
+    }
 }
 
-interface MaxAltitudeConstraint {
+export interface MaxAltitudeConstraint {
     distanceFromStart: NauticalMiles,
     maxAltitude: Feet,
 }
 
-interface MaxSpeedConstraint {
+export interface MaxSpeedConstraint {
     distanceFromStart: NauticalMiles,
     maxSpeed: Feet,
 }

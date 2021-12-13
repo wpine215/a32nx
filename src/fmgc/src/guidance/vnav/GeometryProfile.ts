@@ -67,7 +67,7 @@ export class GeometryProfile {
         // We check for this because there is no speed change point upon reaching acceleration altitude.
         const indexOfAccelerationAltitudeCheckpoint = Math.min(this.checkpoints.length - 1, Math.max(this.checkpoints.findIndex(({ reason }) => reason === VerticalCheckpointReason.AccelerationAltitude) + 1, 0));
 
-        if (distanceFromStart < this.checkpoints[indexOfAccelerationAltitudeCheckpoint].distanceFromStart) {
+        if (distanceFromStart <= this.checkpoints[indexOfAccelerationAltitudeCheckpoint].distanceFromStart) {
             return this.checkpoints[indexOfAccelerationAltitudeCheckpoint].speed;
         }
 
