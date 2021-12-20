@@ -162,7 +162,7 @@ export default class NavigraphClient {
                             console.log('Token Authorization Pending');
                         } else if (error === 'access_denied') {
                             this.auth.disabled = true;
-                        } else if (error === 'expired_token') {
+                        } else {
                             this.authenticate();
                         }
                     });
