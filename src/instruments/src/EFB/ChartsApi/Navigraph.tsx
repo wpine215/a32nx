@@ -128,13 +128,11 @@ export default class NavigraphClient {
                         this.auth.interval = r.interval;
                         this.deviceCode = r.device_code;
                     } else {
-                        this.authenticate()
-                        return;
+                        this.authenticate();
                     }
                 });
             } else {
-                this.authenticate()
-                return;
+                this.authenticate();
             }
         }).catch(() => {
             console.log('Unable to Authorize Device. #NV101');
@@ -154,9 +152,8 @@ export default class NavigraphClient {
 
                         this.refreshToken = refreshToken;
                         NXDataStore.set('NAVIGRAPH_REFRESH_TOKEN', refreshToken);
-                        this.userInfo();
-
                         this.accessToken = r.access_token;
+                        this.userInfo().then((userName) => this.userName = userName);
                     });
                 } else {
                     resp.text().then((respText) => {
@@ -286,36 +283,18 @@ export default class NavigraphClient {
         return !!this.accessToken;
     }
 
-    public async userInfo() {
+    public async userInfo(): Promise<string> {
         if (this.hasToken()) {
-            const userInfoResp = await fetch('https://identity.api.navigraph.com/connect/userinfo', { headers: { Authorization: `Bearer ${this.accessToken}` } }).catch(() => {
-                console.log('Unable to Fetch User Info. #NV103');
-            });
-
-            if (userInfoResp.ok) {
-                const userInfoJson = await userInfoResp.json();
-
-                this.userName = userInfoJson.preferred_username;
-            }
+            return fetch('https://identity.api.navigraph.com/connect/userinfo', { headers: { Authorization: `Bearer ${this.accessToken}` } })
+                .then((resp) => resp.json())
+                .then((respJson) => respJson.preferred_username as string)
+                .catch(() => {
+                    console.log('Unable to Fetch User Info. #NV103');
+                    return 'User Unavailable';
+                });
         }
 
-        return '';
-    }
-
-    public async subscriptionStatus() {
-        if (this.hasToken()) {
-            const subscriptionResp = await fetch('https://subscriptions.api.navigraph.com/2/subscriptions/valid', { headers: { Authorization: `Bearer ${this.accessToken}` } }).catch(() => {
-                console.log('Unable to Fetch Subscription Status. #NV104');
-            });
-
-            if (subscriptionResp.ok) {
-                const subscriptionJson = await subscriptionResp.json();
-
-                return subscriptionJson.subscription_name;
-            }
-        }
-
-        return '';
+        return 'User Unavailable';
     }
 }
 
