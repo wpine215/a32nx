@@ -121,12 +121,20 @@ export default class NavigraphClient {
         }).then((resp) => {
             if (resp.ok) {
                 resp.json().then((r) => {
-                    this.auth.code = r.user_code;
-                    this.auth.link = r.verification_uri;
-                    this.auth.qrLink = r.verification_uri_complete;
-                    this.auth.interval = r.interval;
-                    this.deviceCode = r.device_code;
+                    if (r.device_code) {
+                        this.auth.code = r.user_code;
+                        this.auth.link = r.verification_uri;
+                        this.auth.qrLink = r.verification_uri_complete;
+                        this.auth.interval = r.interval;
+                        this.deviceCode = r.device_code;
+                    } else {
+                        this.authenticate()
+                        return;
+                    }
                 });
+            } else {
+                this.authenticate()
+                return;
             }
         }).catch(() => {
             console.log('Unable to Authorize Device. #NV101');
