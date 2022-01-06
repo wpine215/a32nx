@@ -562,7 +562,7 @@ export class HoldEntryTransition extends Transition {
         });
     }
 
-    recomputeWithParameters(isActive: boolean, _tas: Knots, _gs: Knots, _ppos: Coordinates, _trueTrack: DegreesTrue, _previousGuidable: Guidable, _nextGuidable: Guidable): void {
+    recomputeWithParameters(isActive: boolean, _tas: Knots, _gs: Knots, _ppos: Coordinates, _trueTrack: DegreesTrue, previousGuidable: Guidable, nextGuidable: Guidable): void {
         const hxInbound = this.outboundCourse;
         const entryAngle = Avionics.Utils.diffAngle(this.inboundCourse, hxInbound);
 
@@ -572,6 +572,9 @@ export class HoldEntryTransition extends Transition {
             }
             return;
         }
+
+        this.previousLeg = previousGuidable as any;
+        this.nextLeg = nextGuidable as any;
 
         if (isActive && !this.frozen) {
             this.frozen = true;

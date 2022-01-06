@@ -87,6 +87,10 @@ export class FixedRadiusTransition extends Transition {
             }
             return;
         }
+
+        this.previousLeg = previousGuidable as PrevLeg;
+        this.nextLeg = nextGuidable as NextLeg;
+
         // Sweep angle
         this.sweepAngle = MathUtils.diffAngle(this.previousLeg.outboundCourse, this.nextLeg.inboundCourse);
 

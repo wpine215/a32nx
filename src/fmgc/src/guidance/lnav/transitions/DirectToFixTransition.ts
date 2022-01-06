@@ -102,10 +102,13 @@ export class DirectToFixTransition extends Transition {
         return Math.abs(this.arcSweepAngle) < 3;
     }
 
-    recomputeWithParameters(_isActive: boolean, tas: Knots, gs: Knots, _ppos: Coordinates, _trueTrack: DegreesTrue, _previousGuidable: Guidable, _nextGuidable: Guidable) {
+    recomputeWithParameters(_isActive: boolean, tas: Knots, gs: Knots, _ppos: Coordinates, _trueTrack: DegreesTrue, previousGuidable: Guidable, nextGuidable: Guidable) {
         if (this.isFrozen) {
             return;
         }
+
+        this.previousLeg = previousGuidable as PrevLeg;
+        this.nextLeg = nextGuidable as NextLeg;
 
         const termFix = this.previousLeg.getPathEndPoint();
 

@@ -33,6 +33,8 @@ export class CALeg extends Leg {
 
     private inboundGuidable: Guidable | undefined;
 
+    private outboundGuidable: Guidable | undefined;
+
     get terminationWaypoint(): WayPoint | Coordinates | undefined {
         return this.estimatedTermination;
     }
@@ -55,8 +57,9 @@ export class CALeg extends Leg {
 
     private wasMovedByPpos = false;
 
-    recomputeWithParameters(isActive: boolean, _tas: Knots, _gs: Knots, ppos: Coordinates, _trueTrack: DegreesTrue, previousGuidable: Guidable, _nextGuidable: Guidable) {
+    recomputeWithParameters(isActive: boolean, _tas: Knots, _gs: Knots, ppos: Coordinates, _trueTrack: DegreesTrue, previousGuidable: Guidable, nextGuidable: Guidable) {
         this.inboundGuidable = previousGuidable;
+        this.outboundGuidable = nextGuidable;
 
         // FIXME somehow after reloads the isRunway property is gone, so consider airports as runways for now
         const afterRunway = previousGuidable instanceof IFLeg && (previousGuidable.fix.isRunway || previousGuidable.fix.icao.startsWith('A'));

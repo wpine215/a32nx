@@ -67,10 +67,13 @@ export class PathCaptureTransition extends Transition {
 
     private forcedTurnComplete = false;
 
-    recomputeWithParameters(_isActive: boolean, tas: Knots, gs: Knots, _ppos: Coordinates, _trueTrack: DegreesTrue, previousGuidable: Guidable, _nextGuidable: Guidable) {
+    recomputeWithParameters(_isActive: boolean, tas: Knots, gs: Knots, _ppos: Coordinates, _trueTrack: DegreesTrue, previousGuidable: Guidable, nextGuidable: Guidable) {
         if (this.isFrozen) {
             return;
         }
+
+        this.previousLeg = previousGuidable as PrevLeg;
+        this.nextLeg = nextGuidable as NextLeg;
 
         if (!(previousGuidable instanceof Leg)) {
             throw new Error('[FMS/Geometry/PathCapture] previousGuidable must be a leg');
