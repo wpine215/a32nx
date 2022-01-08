@@ -1,6 +1,8 @@
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { ControlLaw, LateralPathGuidance } from '@fmgc/guidance/ControlLaws';
 import { SegmentType } from '@fmgc/wtsdk';
+import { MathUtils } from '@shared/MathUtils';
+import { Constants } from '@shared/Constants';
 
 /**
  * Compute the remaining distance around an arc
@@ -168,6 +170,80 @@ export function courseToFixGuidance(ppos: Coordinates, trueTrack: Degrees, cours
     const crossTrackError = pposToFixDist * Math.sin(pposToFixAngle * Math.PI / 180);
 
     const trackAngleError = Avionics.Utils.diffAngle(trueTrack, course);
+
+    return {
+        law: ControlLaw.LATERAL_PATH,
+        trackAngleError,
+        crossTrackError,
+        phiCommand: 0,
+    };
+}
+
+function getAlongTrackDistanceTo(start: Coordinates, end: Coordinates, ppos: Coordinates): number {
+    const R = Constants.EARTH_RADIUS_NM;
+
+    const d13 = Avionics.Utils.computeGreatCircleDistance(start, ppos) / R;
+    const Theta13 = Avionics.Utils.DEG2RAD * Avionics.Utils.computeGreatCircleHeading(start, ppos);
+    const Theta12 = Avionics.Utils.DEG2RAD * Avionics.Utils.computeGreatCircleHeading(start, end);
+
+    const deltaXt = Math.asin(Math.sin(d13) * Math.sin(Theta13 - Theta12));
+
+    const deltaAt = Math.acos(Math.cos(d13) / Math.abs(Math.cos(deltaXt)));
+
+    return deltaAt * Math.sign(Math.cos(Theta12 - Theta13)) * R;
+}
+
+export function getIntermediatePoint(start: Coordinates, end: Coordinates, fraction: number): Coordinates {
+    const Phi1 = start.lat * Avionics.Utils.DEG2RAD;
+    const Gamma1 = start.long * Avionics.Utils.DEG2RAD;
+    const Phi2 = end.lat * Avionics.Utils.DEG2RAD;
+    const Gamma2 = end.long * Avionics.Utils.DEG2RAD;
+
+    const deltaPhi = Phi2 - Phi1;
+    const deltaGamma = Gamma2 - Gamma1;
+
+    const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) + Math.cos(Phi1) * Math.cos(Phi2) * Math.sin(deltaGamma / 2) * Math.sin(deltaGamma / 2);
+    const delta = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+    const A = Math.sin((1 - fraction) * delta) / Math.sin(delta);
+    const B = Math.sin(fraction * delta) / Math.sin(delta);
+
+    const x = A * Math.cos(Phi1) * Math.cos(Gamma1) + B * Math.cos(Phi2) * Math.cos(Gamma2);
+    const y = A * Math.cos(Phi1) * Math.sin(Gamma1) + B * Math.cos(Phi2) * Math.sin(Gamma2);
+    const z = A * Math.sin(Phi1) + B * Math.sin(Phi2);
+
+    const Phi3 = Math.atan2(z, Math.sqrt(x * x + y * y));
+    const Gamma3 = Math.atan2(y, x);
+
+    return {
+        lat: Phi3 * Avionics.Utils.RAD2DEG,
+        long: Gamma3 * Avionics.Utils.RAD2DEG,
+    };
+}
+
+export function fixToFixGuidance(ppos: Coordinates, trueTrack: DegreesTrue, from: Coordinates, to: Coordinates): LateralPathGuidance {
+    // Track angle error
+    const totalTrackDistance = Avionics.Utils.computeGreatCircleDistance(from, to);
+    const alongTrackDistance = getAlongTrackDistanceTo(from, to, ppos);
+
+    const intermediatePoint = getIntermediatePoint(from, to, Math.min(Math.max(alongTrackDistance / totalTrackDistance, 0.05), 0.95));
+
+    const desiredTrack = Avionics.Utils.computeGreatCircleHeading(intermediatePoint, to);
+    const trackAngleError = MathUtils.mod(desiredTrack - trueTrack + 180, 360) - 180;
+
+    // Cross track error
+    const bearingAC = Avionics.Utils.computeGreatCircleHeading(from, ppos);
+    const bearingAB = Avionics.Utils.computeGreatCircleHeading(from, to);
+    const distanceAC = Avionics.Utils.computeDistance(from, ppos);
+
+    const desiredOffset = 0;
+    const actualOffset = (
+        Math.asin(
+            Math.sin(Avionics.Utils.DEG2RAD * (distanceAC / Constants.EARTH_RADIUS_NM))
+            * Math.sin(Avionics.Utils.DEG2RAD * (bearingAC - bearingAB)),
+        ) * Avionics.Utils.RAD2DEG
+    ) * Constants.EARTH_RADIUS_NM;
+    const crossTrackError = desiredOffset - actualOffset;
 
     return {
         law: ControlLaw.LATERAL_PATH,

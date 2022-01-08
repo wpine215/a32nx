@@ -20,13 +20,11 @@ export class CILeg extends Leg {
         public readonly course: DegreesTrue,
         public readonly nextLeg: Leg,
         segment: SegmentType,
-        indexInFullPath: number,
         constrainedTurnDirection = TurnDirection.Unknown,
     ) {
         super();
 
         this.segment = segment;
-        this.indexInFullPath = indexInFullPath;
         this.constrainedTurnDirection = constrainedTurnDirection;
     }
 

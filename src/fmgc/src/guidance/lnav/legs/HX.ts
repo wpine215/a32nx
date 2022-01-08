@@ -51,7 +51,7 @@ export class HMLeg extends XFLeg {
 
     private immExitRequested = false;
 
-    constructor(public to: WayPoint, public segment: SegmentType, public indexInFullPath: number) {
+    constructor(public to: WayPoint, public segment: SegmentType) {
         super(to);
     }
 
@@ -402,8 +402,8 @@ export class HMLeg extends XFLeg {
 export class HALeg extends HMLeg {
     private targetAltitude: Feet;
 
-    constructor(public to: WayPoint, public segment: SegmentType, public indexInFullPath: number) {
-        super(to, segment, indexInFullPath);
+    constructor(public to: WayPoint, public segment: SegmentType) {
+        super(to, segment);
 
         // the term altitude is guaranteed to be at or above, and in field altitude1, by ARINC424 coding rules
         if (this.to.legAltitudeDescription !== AltitudeDescriptor.AtOrAbove) {

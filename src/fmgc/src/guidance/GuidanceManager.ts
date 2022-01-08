@@ -49,10 +49,10 @@ export class GuidanceManager {
     ): Leg {
         if (to?.additionalData?.legType === LegType.IF) {
             if (prevLeg && prevLeg instanceof XFLeg && !prevLeg.fix.endsInDiscontinuity) {
-                return new TFLeg(prevLeg.fix, to, segment, toIndex);
+                return new TFLeg(prevLeg.fix, to, segment);
             }
 
-            return new IFLeg(to, segment, toIndex);
+            return new IFLeg(to, segment);
         }
 
         if (!from || !to) {
@@ -61,7 +61,7 @@ export class GuidanceManager {
 
         if (from.endsInDiscontinuity) {
             if (to?.additionalData.legType === LegType.CF || to?.additionalData.legType === LegType.TF) {
-                return new IFLeg(to, segment, toIndex);
+                return new IFLeg(to, segment);
             }
 
             return null;
@@ -69,22 +69,22 @@ export class GuidanceManager {
 
         if (to.additionalData) {
             if (to.additionalData.legType === LegType.CF) {
-                return new CFLeg(to, to.additionalData.course, segment, toIndex);
+                return new CFLeg(to, to.additionalData.course, segment);
             }
 
             if (to.additionalData.legType === LegType.DF) {
-                return new DFLeg(to, segment, toIndex);
+                return new DFLeg(to, segment);
             }
 
             if (to.additionalData.legType === LegType.RF) {
-                return new RFLeg(from, to, to.additionalData.center, segment, toIndex);
+                return new RFLeg(from, to, to.additionalData.center, segment);
             }
 
             if (to.additionalData.legType === LegType.CA) {
                 const course = to.additionalData.vectorsCourse;
                 const altitude = to.additionalData.vectorsAltitude;
 
-                return new CALeg(course, altitude, segment, toIndex, to.turnDirection);
+                return new CALeg(course, altitude, segment, to.turnDirection);
             }
 
             if (to.additionalData.legType === LegType.CI || to.additionalData.legType === LegType.VI) {
@@ -94,7 +94,7 @@ export class GuidanceManager {
 
                 const course = to.additionalData.vectorsCourse;
 
-                return new CILeg(course, nextLeg, segment, toIndex, to.turnDirection);
+                return new CILeg(course, nextLeg, segment, to.turnDirection);
             }
 
             if (to.additionalData.legType === LegType.CR) {
@@ -105,27 +105,27 @@ export class GuidanceManager {
 
                 const originObj = { coordinates: { lat: origin.lat, long: origin.lon }, ident: origin.icao.substring(7, 12).trim(), theta };
 
-                return new CRLeg(course, originObj, radial, segment, toIndex, to.turnDirection);
+                return new CRLeg(course, originObj, radial, segment, to.turnDirection);
             }
 
             if (to.additionalData?.legType === LegType.HA) {
-                return new HALeg(to, segment, toIndex);
+                return new HALeg(to, segment);
             }
 
             if (to.additionalData?.legType === LegType.HF) {
-                return new HFLeg(to, segment, toIndex);
+                return new HFLeg(to, segment);
             }
 
             if (to.additionalData?.legType === LegType.HM) {
-                return new HMLeg(to, segment, toIndex);
+                return new HMLeg(to, segment);
             }
         }
 
         if (to.isVectors) {
-            return new VMLeg(to.additionalData.vectorsHeading, to.additionalData.vectorsCourse, segment, toIndex, to.turnDirection);
+            return new VMLeg(to.additionalData.vectorsHeading, to.additionalData.vectorsCourse, segment, to.turnDirection);
         }
 
-        return new TFLeg(from, to, segment, toIndex);
+        return new TFLeg(from, to, segment);
     }
 
     getLeg(prevLeg: Leg | null, nextLeg: Leg | null, index: number, flightPlanIndex): Leg | null {
@@ -168,7 +168,8 @@ export class GuidanceManager {
 
                 // Sync T-P (FIXME with proper DIRECT TO)
 
-                if (oldLeg instanceof IFLeg && oldLeg.fix.isTurningPoint && newLeg instanceof IFLeg && newLeg.fix.isTurningPoint) {
+                // isTurningPoint property seems to sometimes get lost, so we check ident too. HAX!
+                if (oldLeg instanceof IFLeg && (oldLeg.fix.isTurningPoint || oldLeg.fix.ident === 'T-P') && newLeg instanceof IFLeg && newLeg.fix.isTurningPoint) {
                     oldLeg.fix = newLeg.fix;
                 }
 

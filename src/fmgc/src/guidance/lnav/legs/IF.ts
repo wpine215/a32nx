@@ -12,12 +12,10 @@ export class IFLeg extends XFLeg {
     constructor(
         fix: WayPoint,
         segment: SegmentType,
-        indexInFullPath: number,
     ) {
         super(fix);
 
         this.segment = segment;
-        this.indexInFullPath = indexInFullPath;
     }
 
     get predictedPath(): PathVector[] | undefined {

@@ -19,13 +19,11 @@ export class CALeg extends Leg {
         public readonly course: Degrees,
         public readonly altitude: Feet,
         segment: SegmentType,
-        indexInFullPath: number,
         constrainedTurnDirection = TurnDirection.Unknown,
     ) {
         super();
 
         this.segment = segment;
-        this.indexInFullPath = indexInFullPath;
         this.constrainedTurnDirection = constrainedTurnDirection;
     }
 

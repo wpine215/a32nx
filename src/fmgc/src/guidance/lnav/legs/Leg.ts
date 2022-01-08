@@ -8,8 +8,6 @@ import { TurnDirection } from '@fmgc/types/fstypes/FSEnums';
 export abstract class Leg extends Guidable {
     segment: SegmentType;
 
-    indexInFullPath: number
-
     constrainedTurnDirection = TurnDirection.Unknown;
 
     abstract get inboundCourse(): Degrees | undefined;

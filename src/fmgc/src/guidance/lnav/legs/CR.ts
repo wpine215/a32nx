@@ -18,13 +18,11 @@ export class CRLeg extends Leg {
         public readonly origin: { coordinates: Coordinates, ident: string, theta: DegreesMagnetic },
         public readonly radial: DegreesTrue,
         segment: SegmentType,
-        indexInFullPath: number,
         constrainedTurnDirection = TurnDirection.Unknown,
     ) {
         super();
 
         this.segment = segment;
-        this.indexInFullPath = indexInFullPath;
         this.constrainedTurnDirection = constrainedTurnDirection;
     }
 

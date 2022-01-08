@@ -18,12 +18,10 @@ export class DFLeg extends XFLeg {
     constructor(
         fix: WayPoint,
         segment: SegmentType,
-        indexInFullPath: number,
     ) {
         super(fix);
 
         this.segment = segment;
-        this.indexInFullPath = indexInFullPath;
     }
 
     getPathStartPoint(): Coordinates | undefined {

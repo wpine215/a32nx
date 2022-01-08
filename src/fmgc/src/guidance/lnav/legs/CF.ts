@@ -17,12 +17,10 @@ export class CFLeg extends XFLeg {
         fix: WayPoint,
         public readonly course: DegreesTrue,
         segment: SegmentType,
-        indexInFullPath: number,
     ) {
         super(fix);
 
         this.segment = segment;
-        this.indexInFullPath = indexInFullPath;
     }
 
     getPathStartPoint(): Coordinates | undefined {

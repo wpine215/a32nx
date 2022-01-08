@@ -112,7 +112,6 @@ export class LnavDriver implements GuidanceComponent {
                 outboundTrans,
             );
 
-            // this.guidanceController.activeLegIndex = activeLeg.indexInFullPath;
             this.guidanceController.activeLegDtg = dtg;
             this.guidanceController.activeLegCompleteLegPathDtg = completeLegPathDtg;
             this.guidanceController.displayActiveLegCompleteLegPathDtg = completeDisplayLegPathDtg;

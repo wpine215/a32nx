@@ -31,7 +31,7 @@ export class RFLeg extends XFLeg {
 
     private computedPath: PathVector[] = [];
 
-    constructor(from: WayPoint, to: WayPoint, center: LatLongData, segment: SegmentType, indexInFullPath: number) {
+    constructor(from: WayPoint, to: WayPoint, center: LatLongData, segment: SegmentType) {
         super(to);
 
         this.from = from;
@@ -39,7 +39,6 @@ export class RFLeg extends XFLeg {
         this.center = center;
         this.radius = Avionics.Utils.computeGreatCircleDistance(this.center, this.to.infos.coordinates);
         this.segment = segment;
-        this.indexInFullPath = indexInFullPath;
 
         const bearingFrom = Avionics.Utils.computeGreatCircleHeading(this.center, this.from.infos.coordinates); // -90?
         const bearingTo = Avionics.Utils.computeGreatCircleHeading(this.center, this.to.infos.coordinates); // -90?
