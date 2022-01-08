@@ -80,6 +80,8 @@
     "webpack-dev-server": "^3.11.1"
   },
   "dependencies": {
+    "node-fetch": "^2.6.6",
+    "msfs-navdata": "^1.0.4",
     "@flybywiresim/api-client": "^0.13.0",
     "@flybywiresim/react-components": "^0.3.1",
     "@flybywiresim/tailwind-config": "^0.5.0",
