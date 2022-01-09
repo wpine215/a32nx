@@ -145,10 +145,6 @@ export class CILeg extends Leg {
         return dtg >= 0 && dtg <= this.distance;
     }
 
-    get isCircularArc(): boolean {
-        return false;
-    }
-
     get speedConstraint(): SpeedConstraint | undefined {
         return undefined;
     }

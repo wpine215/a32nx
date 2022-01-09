@@ -261,13 +261,13 @@ export class Geometry {
     }
 
     getGuidableRollAnticipationDistance(gs: Knots, from: Guidable, to: Guidable) {
-        if (!from.isCircularArc && !to.isCircularArc) {
+        if (!from.endsInCircularArc && !to.startsInCircularArc) {
             return 0;
         }
 
         // get nominal phi from previous and next leg
-        const phiNominalFrom = from.isCircularArc ? from.getNominalRollAngle(gs) : 0;
-        const phiNominalTo = to.isCircularArc ? to.getNominalRollAngle(gs) : 0;
+        const phiNominalFrom = from.endsInCircularArc ? from.getNominalRollAngle(gs) : 0;
+        const phiNominalTo = to.startsInCircularArc ? to.getNominalRollAngle(gs) : 0;
 
         // TODO consider case where RAD > transition distance
 

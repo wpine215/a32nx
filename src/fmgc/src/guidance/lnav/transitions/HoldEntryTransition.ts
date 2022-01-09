@@ -225,7 +225,11 @@ export class HoldEntryTransition extends Transition {
         return this.wasAbeam && this.state !== EntryState.Capture;
     }
 
-    get isCircularArc(): boolean {
+    get startsInCircularArc(): boolean {
+        return true;
+    }
+
+    get endsInCircularArc(): boolean {
         return true;
     }
 

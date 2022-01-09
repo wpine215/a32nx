@@ -249,7 +249,7 @@ export class DirectToFixTransition extends Transition {
         return points;
     }
 
-    get isCircularArc(): boolean {
+    get endsInCircularArc(): boolean {
         return this.hasArc;
     }
 
@@ -351,9 +351,9 @@ export class DirectToFixTransition extends Transition {
         return params;
     }
 
-    getNominalRollAngle(_gs: Knots): Degrees {
-        // RAD is managed inside here
-        return 0;
+    getNominalRollAngle(gs: Knots): Degrees {
+        const gsMs = gs * (463 / 900);
+        return (this.clockwise ? 1 : -1) * Math.atan((gsMs ** 2) / (this.radius * 1852 * 9.81)) * (180 / Math.PI);
     }
 
     get repr(): string {

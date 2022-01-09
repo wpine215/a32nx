@@ -146,7 +146,11 @@ export class CourseCaptureTransition extends Transition {
         this.isComputed = true;
     }
 
-    get isCircularArc(): boolean {
+    get startsInCircularArc(): boolean {
+        return this.isArc;
+    }
+
+    get endsInCircularArc(): boolean {
         return this.isArc;
     }
 

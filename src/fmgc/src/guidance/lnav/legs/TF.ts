@@ -87,10 +87,6 @@ export class TFLeg extends XFLeg {
         this.isComputed = true;
     }
 
-    get isCircularArc(): boolean {
-        return false;
-    }
-
     get speedConstraint(): SpeedConstraint | undefined {
         return getSpeedConstraintFromWaypoint(this.to);
     }

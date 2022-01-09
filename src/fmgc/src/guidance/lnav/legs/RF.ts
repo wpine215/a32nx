@@ -88,7 +88,11 @@ export class RFLeg extends XFLeg {
         return this.computedPath;
     }
 
-    get isCircularArc(): boolean {
+    get startsInCircularArc(): boolean {
+        return true;
+    }
+
+    get endsInCircularArc(): boolean {
         return true;
     }
 

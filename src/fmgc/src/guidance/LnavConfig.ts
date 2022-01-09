@@ -27,7 +27,7 @@ export const LnavConfig = {
     /**
      * Whether to print guidance debug information on the ND
      */
-    DEBUG_GUIDANCE: false,
+    DEBUG_GUIDANCE: true,
 
     /**
      * Whether to print guidable recomputation info

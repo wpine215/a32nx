@@ -75,12 +75,21 @@ export abstract class Guidable {
     abstract get predictedPath(): PathVector[] | undefined;
 
     /**
-     * For roll anticipation
+     * Whether the path ends in a curved arc - for entry roll anticipation
      */
-    abstract get isCircularArc(): boolean;
+    get startsInCircularArc(): boolean {
+        return false;
+    }
 
     /**
-     * For roll anticipation
+     * Whether the path ends in a curved arc - for exit roll anticipation
+     */
+    get endsInCircularArc(): boolean {
+        return false;
+    }
+
+    /**
+     * Obtain the nominal roll angle for the curved portion of the path
      */
     abstract getNominalRollAngle(gs: MetresPerSecond): Degrees | undefined;
 

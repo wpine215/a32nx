@@ -279,8 +279,12 @@ export class PathCaptureTransition extends Transition {
         }
     }
 
-    get isCircularArc(): boolean {
-        return false;
+    get startsInCircularArc(): boolean {
+        return false; // We don't want to do RAD for path captures
+    }
+
+    get endsInCircularArc(): boolean {
+        return false; // We don't want to do RAD for path captures
     }
 
     isAbeam(ppos: LatLongData): boolean {

@@ -69,10 +69,6 @@ export class VMLeg extends Leg {
         this.isComputed = true;
     }
 
-    get isCircularArc(): boolean {
-        return false;
-    }
-
     get inboundCourse(): Degrees {
         return this.heading;
     }

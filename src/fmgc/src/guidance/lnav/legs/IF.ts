@@ -78,10 +78,6 @@ export class IFLeg extends XFLeg {
         return false;
     }
 
-    get isCircularArc(): boolean {
-        return false;
-    }
-
     get speedConstraint(): SpeedConstraint | undefined {
         return undefined;
     }

@@ -147,7 +147,11 @@ export class FixedRadiusTransition extends Transition {
         this.isComputed = true;
     }
 
-    get isCircularArc(): boolean {
+    get startsInCircularArc(): boolean {
+        return true;
+    }
+
+    get endsInCircularArc(): boolean {
         return true;
     }
 

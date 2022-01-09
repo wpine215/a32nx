@@ -218,7 +218,7 @@ export class HMLeg extends XFLeg {
         return this.inboundLegCourse;
     }
 
-    get isCircularArc(): boolean {
+    get startsInCircularArc(): boolean {
         // this is intended to be used only for entry...
         return this.state === HxLegGuidanceState.Arc1 || this.state === HxLegGuidanceState.Arc2;
     }
@@ -229,7 +229,7 @@ export class HMLeg extends XFLeg {
      * @returns
      */
     public getNominalRollAngle(gs: Knots): Degrees {
-        return this.isCircularArc ? maxBank(gs, true) : 0;
+        return this.endsInCircularArc ? maxBank(gs, true) : 0;
     }
 
     protected getDistanceToGoThisOrbit(ppos: LatLongData): NauticalMiles {

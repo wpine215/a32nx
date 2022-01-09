@@ -121,10 +121,6 @@ export class CFLeg extends XFLeg {
         return dtg >= 0 && dtg <= this.distance;
     }
 
-    get isCircularArc(): boolean {
-        return false;
-    }
-
     get speedConstraint(): SpeedConstraint | undefined {
         return undefined;
     }
