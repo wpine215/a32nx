@@ -1,8 +1,8 @@
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { ControlLaw, LateralPathGuidance } from '@fmgc/guidance/ControlLaws';
-import { SegmentType } from '@fmgc/wtsdk';
 import { MathUtils } from '@shared/MathUtils';
 import { Constants } from '@shared/Constants';
+import { SegmentType } from '@fmgc/flightplanning/FlightPlanSegment';
 
 /**
  * Compute the remaining distance around an arc
