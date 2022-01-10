@@ -1,6 +1,6 @@
 import React, { FC, memo, useCallback, useState } from 'react';
 import { Layer } from '@instruments/common/utils';
-import { PathVector, PathVectorType } from '@fmgc/guidance/lnav/PathVector';
+import { DebugPointColour, PathVector, PathVectorType } from '@fmgc/guidance/lnav/PathVector';
 import { LnavConfig } from '@fmgc/guidance/LnavConfig';
 import { EfisSide, EfisVectorsGroup } from '@shared/NavigationDisplay';
 import { Geo } from '@fmgc/utils/Geo';
@@ -91,16 +91,18 @@ export const FlightPlanVectors: FC<FlightPlanVectorsProps> = memo(({ x, y, mapPa
 
                     const offset = index % 2 === 0;
 
+                    const colour = DebugPointColour[vector.colour ?? DebugPointColour.Cyan];
+
                     return (
                         <>
                             <path
-                                stroke="cyan"
+                                stroke={colour}
                                 fill="none"
                                 strokeWidth={1.5}
                                 d={`M ${x} ${y} h -7 h 14 m -7 -7 v 14`}
                             />
 
-                            <text x={x + (offset ? -15 : 15)} y={y + 5} fontSize={13} textAnchor={offset ? 'end' : 'start'} fill="cyan">{vector.annotation}</text>
+                            <text x={x + (offset ? -15 : 15)} y={y + 5} fontSize={13} textAnchor={offset ? 'end' : 'start'} fill={colour}>{vector.annotation}</text>
                         </>
                     );
                 default:
