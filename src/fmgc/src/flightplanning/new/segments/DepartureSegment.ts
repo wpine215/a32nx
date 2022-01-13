@@ -3,11 +3,13 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { Airport, Database, Departure, ExternalBackend, ProcedureLeg, Runway } from 'msfs-navdata';
+import { Airport, Database, Departure, ExternalBackend, Runway } from 'msfs-navdata';
 import { ProcedureTransition } from 'msfs-navdata/dist/shared/types/Common';
-import { FlightPlan, FlightPlanSegment } from '@fmgc/flightplanning/new/FlightPlan';
+import { FlightPlan } from '@fmgc/flightplanning/new/FlightPlan';
+import { FlightPlanLeg } from '@fmgc/flightplanning/new/legs/FlightPlanLeg';
+import { FlightPlanSegment } from '@fmgc/flightplanning/new/segments/FlightPlanSegment';
 
-export class DepartureSegment implements FlightPlanSegment {
+export class DepartureSegment extends FlightPlanSegment {
     originAirport: Airport
 
     originRunway: Runway
@@ -18,15 +20,16 @@ export class DepartureSegment implements FlightPlanSegment {
 
     originEnrouteTransition: ProcedureTransition
 
-    runwayTransitionLegs: ProcedureLeg[] = []
+    runwayTransitionLegs: FlightPlanLeg[] = []
 
-    commonLegs: ProcedureLeg[] = []
+    commonLegs: FlightPlanLeg[] = []
 
-    enrouteTransitionLegs: ProcedureLeg[] = []
+    enrouteTransitionLegs: FlightPlanLeg[] = []
 
     constructor(
         private flightPlan: FlightPlan,
     ) {
+        super();
     }
 
     get allLegs() {
@@ -90,8 +93,8 @@ export class DepartureSegment implements FlightPlanSegment {
         this.originDeparture = matchingProcedure;
 
         // TODO stringing
-        this.runwayTransitionLegs = runwayTransition?.legs ?? [];
-        this.commonLegs = matchingProcedure.commonLegs;
+        this.runwayTransitionLegs = runwayTransition?.legs?.map((leg) => FlightPlanLeg.fromProcedureLeg(leg)) ?? [];
+        this.commonLegs = matchingProcedure.commonLegs.map((leg) => FlightPlanLeg.fromProcedureLeg(leg));
     }
 
     async setDepartureEnrouteTransition(transitionIdent: string) {
@@ -106,6 +109,42 @@ export class DepartureSegment implements FlightPlanSegment {
         }
 
         // TODO stringing
-        this.enrouteTransitionLegs = matchingEnrouteTransition.legs;
+        this.enrouteTransitionLegs = matchingEnrouteTransition.legs.map((leg) => FlightPlanLeg.fromProcedureLeg(leg));
+    }
+
+    truncate(fromIndex: number) {
+        // TODO runway leg
+
+        let removed;
+
+        if (fromIndex < this.runwayTransitionLegs.length) {
+            const indexInSubsegment = fromIndex;
+
+            removed = [
+                ...this.runwayTransitionLegs.splice(indexInSubsegment),
+                ...this.commonLegs,
+                ...this.enrouteTransitionLegs,
+            ];
+
+            this.commonLegs.length = 0;
+            this.enrouteTransitionLegs.length = 0;
+        } else if (fromIndex < (this.runwayTransitionLegs.length + this.commonLegs.length)) {
+            const indexInSubsegment = fromIndex - this.runwayTransitionLegs.length;
+
+            removed = [
+                ...this.commonLegs.splice(indexInSubsegment),
+                ...this.enrouteTransitionLegs,
+            ];
+
+            this.enrouteTransitionLegs.length = 0;
+        } else if (fromIndex < (this.runwayTransitionLegs.length + this.commonLegs.length + this.enrouteTransitionLegs.length)) {
+            const indexInSubsegment = fromIndex - (this.runwayTransitionLegs.length + this.commonLegs.length);
+
+            removed = this.enrouteTransitionLegs.splice(indexInSubsegment);
+        } else {
+            throw new Error('[FMS/FPM] Cannot truncate segment as fromIndex is too large.');
+        }
+
+        this.flightPlan.enroute.insertLegs(...removed);
     }
 }

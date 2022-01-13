@@ -10,7 +10,6 @@ import { GuidanceParameters, LateralPathGuidance } from '@fmgc/guidance/ControlL
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { Geo } from '@fmgc/utils/Geo';
 import { Constants } from '@shared/Constants';
-import { Geometry } from '@fmgc/guidance/Geometry';
 import { PathVector, PathVectorType } from '@fmgc/guidance/lnav/PathVector';
 import { LnavConfig } from '@fmgc/guidance/LnavConfig';
 import { TurnDirection } from '@fmgc/types/fstypes/FSEnums';
@@ -21,7 +20,7 @@ import {
     arcGuidance,
     arcLength,
     courseToFixDistanceToGo,
-    courseToFixGuidance,
+    courseToFixGuidance, getRollAnticipationDistance,
     maxBank,
 } from '../CommonGeometry';
 
@@ -129,7 +128,7 @@ export class DirectToFixTransition extends Transition {
 
         const currentRollAngle = 0; // TODO: if active leg, current aircraft roll, else 0
         const rollAngleChange = Math.abs(turnDirectionSign * maxBank(tas, true) - currentRollAngle);
-        const rollAnticipationDistance = Geometry.getRollAnticipationDistance(gs, 0, rollAngleChange);
+        const rollAnticipationDistance = getRollAnticipationDistance(gs, 0, rollAngleChange);
 
         let itp = rollAnticipationDistance < 0.05 ? termFix
             : Geo.computeDestinationPoint(termFix, rollAnticipationDistance, this.previousLeg.outboundCourse);
@@ -336,7 +335,7 @@ export class DirectToFixTransition extends Transition {
                 bankNext = this.arcSweepAngle > 0 ? maxBank(tas, true) : -maxBank(tas, false);
             }
 
-            const rad = Geometry.getRollAnticipationDistance(tas, 0, bankNext);
+            const rad = getRollAnticipationDistance(tas, 0, bankNext);
 
             if (dtg <= rad) {
                 params.phiCommand = bankNext;

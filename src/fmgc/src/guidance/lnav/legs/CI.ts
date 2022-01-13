@@ -7,10 +7,7 @@ import { courseToFixDistanceToGo } from '@fmgc/guidance/lnav/CommonGeometry';
 import { Geo } from '@fmgc/utils/Geo';
 import { LnavConfig } from '@fmgc/guidance/LnavConfig';
 import { Leg } from '@fmgc/guidance/lnav/legs/Leg';
-import { IFLeg } from '@fmgc/guidance/lnav/legs/IF';
-import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { TurnDirection } from '@fmgc/types/fstypes/FSEnums';
-import { FixedRadiusTransition } from '@fmgc/guidance/lnav/transitions/FixedRadiusTransition';
 import { PathVector, PathVectorType } from '../PathVector';
 
 export class CILeg extends Leg {
@@ -47,9 +44,7 @@ export class CILeg extends Leg {
     private outboundGuidable: Guidable | undefined;
 
     getPathStartPoint(): Coordinates | undefined {
-        if (this.inboundGuidable instanceof IFLeg) {
-            return this.inboundGuidable.fix.infos.coordinates;
-        } if (this.inboundGuidable && this.inboundGuidable.isComputed) {
+        if (this.inboundGuidable?.isComputed) {
             return this.inboundGuidable.getPathEndPoint();
         }
 
@@ -57,7 +52,7 @@ export class CILeg extends Leg {
     }
 
     getPathEndPoint(): Coordinates | undefined {
-        if (this.outboundGuidable instanceof FixedRadiusTransition && !this.outboundGuidable.isReverted && this.outboundGuidable.isComputed) {
+        if (this.outboundGuidable?.isComputed) {
             return this.outboundGuidable.getPathStartPoint();
         }
 

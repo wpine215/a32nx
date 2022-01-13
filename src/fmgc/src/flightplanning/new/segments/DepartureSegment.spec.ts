@@ -92,5 +92,27 @@ describe('a departure segment', () => {
             expect(segment.commonLegs).toHaveLength(0);
             expect(segment.enrouteTransitionLegs).toHaveLength(4);
         });
+
+        it('can be truncated to ANPOV', async () => {
+            const flightPlan = FlightPlan.empty();
+            const segment = flightPlan.departure;
+
+            await segment.setOriginIcao('NZQN');
+            await segment.setOriginRunway('RW05');
+            await segment.setDepartureProcedure('ANPO3A');
+
+            await expect(segment.setDepartureEnrouteTransition('SAVLA')).resolves.not.toThrow();
+
+            segment.truncate(segment.allLegs.length - 2);
+
+            expect(segment.runwayTransitionLegs).toHaveLength(8);
+            expect(segment.commonLegs).toHaveLength(0);
+            expect(segment.enrouteTransitionLegs).toHaveLength(2);
+            expect(segment.enrouteTransitionLegs[1].ident).toEqual('AKMAD');
+
+            expect(flightPlan.enroute.allLegs).toHaveLength(2);
+            expect(flightPlan.enroute.allLegs[0].ident).toEqual('NONAN');
+            expect(flightPlan.enroute.allLegs[1].ident).toEqual('SAVLA');
+        });
     });
 });

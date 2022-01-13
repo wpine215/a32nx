@@ -3,14 +3,14 @@ import { TurnDirection } from '@fmgc/types/fstypes/FSEnums';
 import { FixedRadiusTransition } from '@fmgc/guidance/lnav/transitions/FixedRadiusTransition';
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { Guidable } from '@fmgc/guidance/Guidable';
+import { Waypoint } from 'msfs-navdata';
 
 export abstract class XFLeg extends Leg {
     protected constructor(
-        public fix: WayPoint,
+        public fix: Waypoint,
+        public constrainedTurnDirection: TurnDirection,
     ) {
         super();
-
-        this.constrainedTurnDirection = fix.turnDirection;
     }
 
     protected inboundGuidable: Guidable | undefined;

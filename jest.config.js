@@ -7,6 +7,7 @@ module.exports = {
     ],
     moduleNameMapper: {
         '^@fmgc/(.*)$': '<rootDir>/src/fmgc/src/$1',
+        '^@shared/(.*)$': '<rootDir>/src/shared/src/$1',
     },
     globals: {
         'ts-jest': {

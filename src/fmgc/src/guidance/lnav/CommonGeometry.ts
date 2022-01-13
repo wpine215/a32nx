@@ -152,6 +152,18 @@ export function maxBank(tas: Knots, toGuidedPath: boolean): Degrees {
     return 30;
 }
 
+export function getRollAnticipationDistance(gs: Knots, bankA: Degrees, bankB: Degrees): NauticalMiles {
+    // calculate delta phi
+    const deltaPhi = Math.abs(bankA - bankB);
+
+    // calculate RAD
+    const maxRollRate = 5; // deg / s, TODO picked off the wind
+    const k2 = 0.0038;
+    const rad = gs / 3600 * (Math.sqrt(1 + 2 * k2 * 9.81 * deltaPhi / maxRollRate) - 1) / (k2 * 9.81);
+
+    return rad;
+}
+
 export function courseToFixDistanceToGo(ppos: Coordinates, course: Degrees, fix: Coordinates): NauticalMiles {
     const pposToFixBearing = Avionics.Utils.computeGreatCircleHeading(ppos, fix);
     const pposToFixDist = Avionics.Utils.computeGreatCircleDistance(ppos, fix);
