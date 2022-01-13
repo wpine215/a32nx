@@ -272,12 +272,16 @@ impl MsfsAspectCtor for Flaps {
                 right_slat: 0.,
             },
 
-            flaps_handle_position: 0,
-            left_flaps_position: 0.,
-            right_flaps_position: 0.,
+            flaps_handle_position: NamedVariable::from("A32NX_FLAPS_HANDLE_INDEX").get_value(),
+            left_flaps_position: NamedVariable::from("A32NX_LEFT_FLAPS_POSITION_PERCENT")
+                .get_value(),
+            right_flaps_position: NamedVariable::from("A32NX_RIGHT_FLAPS_POSITION_PERCENT")
+                .get_value(),
 
-            left_slats_position: 0.,
-            right_slats_position: 0.,
+            left_slats_position: NamedVariable::from("A32NX_LEFT_SLATS_POSITION_PERCENT")
+                .get_value(),
+            right_slats_position: NamedVariable::from("A32NX_RIGHT_SLATS_POSITION_PERCENT")
+                .get_value(),
         })
     }
 }
