@@ -8,6 +8,7 @@ import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { LnavConfig } from '@fmgc/guidance/LnavConfig';
 import { Transition } from '@fmgc/guidance/lnav/Transition';
 import { Geo } from '@fmgc/utils/Geo';
+import { FixedRadiusTransition } from '@fmgc/guidance/lnav/transitions/FixedRadiusTransition';
 import { PathVector, PathVectorType } from '../PathVector';
 
 export class CFLeg extends XFLeg {
@@ -51,9 +52,15 @@ export class CFLeg extends XFLeg {
             );
         }
 
+        // We start the leg at (tad + 0.1) from the fix if we have a fixed radius transition outbound. This allows showing a better looking path after sequencing.
+        let distance = 1;
+        if (this.outboundGuidable instanceof FixedRadiusTransition && this.outboundGuidable.isComputed) {
+            distance = this.outboundGuidable.tad + 0.1;
+        }
+
         return Avionics.Utils.bearingDistanceToCoordinates(
             inverseCourse,
-            1,
+            distance,
             this.fix.infos.coordinates.lat,
             this.fix.infos.coordinates.long,
         );
