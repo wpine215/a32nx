@@ -27,6 +27,8 @@ const mod = (x: number, n: number) => x - Math.floor(x / n) * n;
 export class FixedRadiusTransition extends Transition {
     public radius: NauticalMiles;
 
+    public tad: NauticalMiles;
+
     public clockwise: boolean;
 
     public isFrozen: boolean = false;
@@ -103,6 +105,9 @@ export class FixedRadiusTransition extends Transition {
         // Turn radius
         this.radius = ((tas ** 2 / (9.81 * Math.tan(finalBankAngle * Avionics.Utils.DEG2RAD))) / 6997.84) * LnavConfig.TURN_RADIUS_FACTOR;
 
+        // Turn anticipation distance
+        this.tad = this.radius * Math.tan(Math.abs(this.sweepAngle / 2) * MathUtils.DEGREES_TO_RADIANS);
+
         // Check what the distance from the fix to the next leg is (to avoid being not lined up in some XF -> CF cases)
         const prevLegTermDistanceToNextLeg = Geo.distanceToLeg(
             this.previousLeg instanceof XFLeg ? this.previousLeg.fix.infos.coordinates : this.previousLeg.intercept,
@@ -112,8 +117,7 @@ export class FixedRadiusTransition extends Transition {
         const defaultTurnDirection = this.sweepAngle >= 0 ? TurnDirection.Right : TurnDirection.Left;
         const forcedTurn = (this.nextLeg.constrainedTurnDirection === TurnDirection.Left || this.nextLeg.constrainedTurnDirection === TurnDirection.Right)
             && defaultTurnDirection !== this.nextLeg.constrainedTurnDirection;
-        const requiredTurnDistance = this.radius * Math.tan(Math.abs(this.sweepAngle / 2) * MathUtils.DEGREES_TO_RADIANS) + 0.1;
-        const tooBig = this.previousLeg.distanceToTermFix < requiredTurnDistance;
+        const tooBig = this.previousLeg.distanceToTermFix < this.tad + 0.1;
         const notLinedUp = Math.abs(prevLegTermDistanceToNextLeg) >= 0.25; // "reasonable" distance
 
         // in some circumstances we revert to a path capture transition where the fixed radius won't work well
@@ -204,20 +208,18 @@ export class FixedRadiusTransition extends Transition {
     private turningPoints;
 
     private computeTurningPoints(): [LatLongAlt, LatLongAlt] {
-        const tad = this.radius * Math.tan(Math.abs(this.sweepAngle / 2) * Avionics.Utils.DEG2RAD);
-
         const { lat, long } = this.previousLeg instanceof CILeg ? this.previousLeg.intercept : this.previousLeg.fix.infos.coordinates;
 
         const inbound = Avionics.Utils.bearingDistanceToCoordinates(
             mod(this.previousLeg.outboundCourse + 180, 360),
-            tad,
+            this.tad,
             lat,
             long,
         );
 
         const outbound = Avionics.Utils.bearingDistanceToCoordinates(
             this.nextLeg.inboundCourse,
-            tad,
+            this.tad,
             lat,
             long,
         );
