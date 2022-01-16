@@ -1772,14 +1772,14 @@ export class FlightPlanManager {
             return;
         }
 
-        let fpJson = JSON.stringify(this._flightPlans.map((fp) => fp.serialize()));
-        if (fpJson.length > 2500000) {
-            fpJson = LZUTF8.compress(fpJson, { outputEncoding: 'StorageBinaryString' });
-            window.localStorage.setItem(FlightPlanManager.FlightPlanCompressedKey, '1');
-        } else {
-            window.localStorage.setItem(FlightPlanManager.FlightPlanCompressedKey, '0');
-        }
-        window.localStorage.setItem(FlightPlanManager.FlightPlanKey, fpJson);
+        // let fpJson = JSON.stringify(this._flightPlans.map((fp) => fp.serialize()));
+        // if (fpJson.length > 2500000) {
+        //     fpJson = LZUTF8.compress(fpJson, { outputEncoding: 'StorageBinaryString' });
+        //     window.localStorage.setItem(FlightPlanManager.FlightPlanCompressedKey, '1');
+        // } else {
+        //     window.localStorage.setItem(FlightPlanManager.FlightPlanCompressedKey, '0');
+        // }
+        // window.localStorage.setItem(FlightPlanManager.FlightPlanKey, fpJson);
         SimVar.SetSimVarValue(FlightPlanManager.FlightPlanVersionKey, 'number', ++this._currentFlightPlanVersion);
         if (NXDataStore.get('FP_SYNC', 'LOAD') === 'SAVE') {
             FlightPlanAsoboSync.SaveToGame(this).catch(console.error);
