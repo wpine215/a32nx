@@ -15,7 +15,10 @@ export interface ClimbStrategy {
      * @param fuelOnBoard Remainging fuel on board at the start of the climb
      * @returns `StepResults`
      */
-    predict(initialAltitude: number, finalAltitude: number, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults;
+    predictToAltitude(initialAltitude: number, finalAltitude: number, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults;
+
+    predictToDistance(initialAltitude: number, distance: NauticalMiles, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults;
+
 }
 
 export interface DescentStrategy {
@@ -28,13 +31,15 @@ export interface DescentStrategy {
      * @param fuelOnBoard Remainging fuel on board at the start of the climb
      * @returns `StepResults`
      */
-    predict(initialAltitude: number, finalAltitude: number, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults;
+    predictToAltitude(initialAltitude: number, finalAltitude: number, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults;
+
+    predictToDistance(initialAltitude: number, distance: NauticalMiles, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults;
 }
 
 export class VerticalSpeedStrategy implements ClimbStrategy, DescentStrategy {
     constructor(private observer: VerticalProfileComputationParametersObserver, private atmosphericConditions: AtmosphericConditions, private verticalSpeed: FeetPerMinute) { }
 
-    predict(initialAltitude: Feet, finalAltitude: Feet, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults {
+    predictToAltitude(initialAltitude: Feet, finalAltitude: Feet, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults {
         const { zeroFuelWeight, perfFactor } = this.observer.get();
 
         return Predictions.verticalSpeedStep(
@@ -49,12 +54,28 @@ export class VerticalSpeedStrategy implements ClimbStrategy, DescentStrategy {
             perfFactor,
         );
     }
+
+    predictToDistance(initialAltitude: Feet, distance: NauticalMiles, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults {
+        const { zeroFuelWeight, perfFactor } = this.observer.get();
+
+        return Predictions.verticalSpeedDistanceStep(
+            initialAltitude,
+            distance,
+            this.verticalSpeed,
+            speed,
+            mach,
+            zeroFuelWeight * Constants.TONS_TO_POUNDS,
+            fuelOnBoard,
+            this.atmosphericConditions.isaDeviation,
+            perfFactor,
+        );
+    }
 }
 
 export class ClimbThrustClimbStrategy implements ClimbStrategy {
     constructor(private observer: VerticalProfileComputationParametersObserver, private atmosphericConditions: AtmosphericConditions) { }
 
-    predict(initialAltitude: Feet, finalAltitude: Feet, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults {
+    predictToAltitude(initialAltitude: Feet, finalAltitude: Feet, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults {
         const { zeroFuelWeight, tropoPause, perfFactor } = this.observer.get();
 
         return Predictions.altitudeStep(
@@ -63,6 +84,26 @@ export class ClimbThrustClimbStrategy implements ClimbStrategy {
             speed,
             mach,
             this.getClimbThrustN1Limit((initialAltitude + finalAltitude) / 2, speed),
+            zeroFuelWeight * Constants.TONS_TO_POUNDS,
+            fuelOnBoard,
+            0,
+            this.atmosphericConditions.isaDeviation,
+            tropoPause,
+            false,
+            FlapConf.CLEAN,
+            perfFactor,
+        );
+    }
+
+    predictToDistance(initialAltitude: Feet, distance: NauticalMiles, speed: Knots, mach: Mach, fuelOnBoard: number): StepResults {
+        const { zeroFuelWeight, tropoPause, perfFactor } = this.observer.get();
+
+        return Predictions.distanceStep(
+            initialAltitude,
+            distance,
+            speed,
+            mach,
+            this.getClimbThrustN1Limit(initialAltitude, speed),
             zeroFuelWeight * Constants.TONS_TO_POUNDS,
             fuelOnBoard,
             0,

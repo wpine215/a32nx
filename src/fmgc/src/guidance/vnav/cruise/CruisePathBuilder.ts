@@ -77,8 +77,8 @@ export class CruisePathBuilder {
             });
 
             const { fuelBurned: fuelBurnedStep, timeElapsed: timeElapsedStep, distanceTraveled: distanceTraveledStep } = isClimbVsDescent
-                ? stepClimbStrategy.predict(altitude, step.toAltitude, managedCruiseSpeed, managedCruiseSpeedMach, remainingFuelOnBoard)
-                : stepDescentStrategy.predict(altitude, step.toAltitude, managedCruiseSpeed, managedCruiseSpeed, remainingFuelOnBoard);
+                ? stepClimbStrategy.predictToAltitude(altitude, step.toAltitude, managedCruiseSpeed, managedCruiseSpeedMach, remainingFuelOnBoard)
+                : stepDescentStrategy.predictToAltitude(altitude, step.toAltitude, managedCruiseSpeed, managedCruiseSpeed, remainingFuelOnBoard);
 
             distanceFromStart += distanceTraveledStep;
             remainingFuelOnBoard -= fuelBurnedStep;
