@@ -50,6 +50,7 @@ node_modules
 .igniter
 /src/fdr2csv/*.exe
 /src/fbw/obj/
+/src/wasm_instruments/obj/
 /src/fdr2csv/build/
 .env
 src/instruments/buildSrc/custom/*
