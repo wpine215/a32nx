@@ -17,15 +17,15 @@
 // TODO: look into splitting up into 3 separate structs?
 struct IsisVariableStruct {
     // Unit types
-    ENUM number;
-    ENUM boolean;
-    ENUM degrees;
-    ENUM feet;
-    ENUM knots;
-    ENUM mach;
-    ENUM millibars;
-    ENUM inHg;
-    ENUM gforce;
+    ENUM t_enum;
+    ENUM t_bool;
+    ENUM t_degrees;
+    ENUM t_feet;
+    ENUM t_knots;
+    ENUM t_mach;
+    ENUM t_millibars;
+    ENUM t_inHg;
+    ENUM t_gforce;
     // Simvars/Localvars
     ENUM pitch;
     ENUM bank;
@@ -76,15 +76,15 @@ extern "C" {
             case PANEL_SERVICE_PRE_INSTALL:
             {
                 // Register unit types
-                isisVariables.number = get_units_enum("NUMBER");
-                isisVariables.boolean = get_units_enum("BOOL");
-                isisVariables.degrees = get_units_enum("DEGREES");
-                isisVariables.feet = get_units_enum("FEET");
-                isisVariables.knots = get_units_enum("KNOTS");
-                isisVariables.mach = get_units_enum("MACH");
-                isisVariables.millibars = get_units_enum("MILLIBARS");
-                isisVariables.inHg = get_units_enum("INHG");
-                isisVariables.gforce = get_units_enum("G FORCE");
+                isisVariables.t_enum = get_units_enum("ENUM");
+                isisVariables.t_bool = get_units_enum("BOOL");
+                isisVariables.t_degrees = get_units_enum("DEGREES");
+                isisVariables.t_feet = get_units_enum("FEET");
+                isisVariables.t_knots = get_units_enum("KNOTS");
+                isisVariables.t_mach = get_units_enum("MACH");
+                isisVariables.t_millibars = get_units_enum("MILLIBARS");
+                isisVariables.t_inHg = get_units_enum("INHG");
+                isisVariables.t_gforce = get_units_enum("G FORCE");
 
                 // Register variables
                 isisVariables.pitch = get_aircraft_var_enum("PLANE PITCH DEGREES");
@@ -111,10 +111,10 @@ extern "C" {
                 sGaugeDrawData* p_draw_data = (sGaugeDrawData*)pData;
 
                 // Fetch variables
-                FLOAT64 pitch = aircraft_varget(isisVariables.pitch, isisVariables.degrees, 0);
-                FLOAT64 bank = aircraft_varget(isisVariables.bank, isisVariables.degrees, 0);
-                FLOAT64 altitude = aircraft_varget(isisVariables.altitude, isisVariables.feet, 0);
-                FLOAT64 ias = aircraft_varget(isisVariables.ias, isisVariables.knots, 0);
+                FLOAT64 pitch = aircraft_varget(isisVariables.pitch, isisVariables.t_degrees, 0);
+                FLOAT64 bank = aircraft_varget(isisVariables.bank, isisVariables.t_degrees, 0);
+                FLOAT64 altitude = aircraft_varget(isisVariables.altitude, isisVariables.t_feet, 0);
+                FLOAT64 ias = aircraft_varget(isisVariables.ias, isisVariables.t_knots, 0);
                 // TODO: more variables
 
                 // Draw
