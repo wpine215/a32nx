@@ -118,13 +118,40 @@ extern "C" {
                 // TODO: more variables
 
                 // Draw
-                float fsize = 0; // TODO: figure out what this is for?
+                float fSize = sqrt(p_draw_data->winWidth * p_draw_data->winWidth + p_draw_data->winHeight * p_draw_data->winHeight) * 1.1f; // TODO: figure out what this is for?
                 float pxRatio = (float)p_draw_data->fbWidth / (float)p_draw_data->winWidth;
                 NVGcontext* nvgctx = IsisNVGContext[ctx];
                 nvgBeginFrame(nvgctx, p_draw_data->winWidth, p_draw_data->winHeight, pxRatio);
                 {
-                    // Placeholder drawing
+                    // Placeholder drawing from Asobo attitude.cpp example
+                    // Center
                     nvgTranslate(nvgctx, p_draw_data->winWidth * 0.5f, p_draw_data->winHeight * 0.5f);
+                    // Bank
+                    nvgRotate(nvgctx, bank * M_PI / 180.0f);
+                    // Level
+                    float fH = fSize * 0.5f * (1.0f - sin(pitch * M_PI / 180.0f));
+                    // Sky
+                    nvgFillColor(nvgctx, nvgRGB(0, 191, 255));
+                    nvgBeginPath(nvgctx);
+                    nvgRect(nvgctx, -fSize * 0.5f, -fSize * 0.5f, fSize, fH);
+                    nvgFill(nvgctx);
+                    // Ground
+                    nvgFillColor(nvgctx, nvgRGB(210, 105, 30));
+                    nvgBeginPath(nvgctx);
+                    nvgRect(nvgctx, -fSize * 0.5f, -fSize * 0.5f + fH, fSize, fSize - fH);
+                    nvgFill(nvgctx);
+                    // Indicator
+                    nvgResetTransform(nvgctx);
+                    nvgTranslate(nvgctx, p_draw_data->winWidth * 0.5f, p_draw_data->winHeight * 0.5f);
+                    nvgStrokeColor(nvgctx, nvgRGB(255, 255, 0));
+                    nvgStrokeWidth(nvgctx, 15.0f);
+                    nvgBeginPath(nvgctx);
+                    nvgMoveTo(nvgctx, -p_draw_data->winWidth * 0.2f, 0);
+                    nvgLineTo(nvgctx, -p_draw_data->winWidth * 0.05f, 0);
+                    nvgArc(nvgctx, 0, 0, p_draw_data->winWidth * 0.05f, M_PI, 0, NVG_CCW);
+                    nvgLineTo(nvgctx, p_draw_data->winWidth * 0.2f, 0);
+                    nvgStroke(nvgctx);
+                    // Circle
                     nvgFillColor(nvgctx, nvgRGB(255, 255, 0));
                     nvgBeginPath(nvgctx);
                     nvgCircle(nvgctx, 0, 0, p_draw_data->winWidth * 0.01f);
