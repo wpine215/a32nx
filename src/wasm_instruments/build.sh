@@ -71,11 +71,10 @@ clang++ \
   -fvisibility=hidden \
   -I "${MSFS_SDK}/WASM/include" \
   -I "${MSFS_SDK}/SimConnect SDK/include" \
-  -I "${DIR}/src/isis" \
-  "${DIR}/src/isis/display.cpp" \
   -I "${DIR}/src/zlib" \
   "${DIR}/src/zlib/zfstream.cc" \
-  "${DIR}/src/main.cpp" \
+  -I "${DIR}/src/isis" \
+  "${DIR}/src/isis/main.cpp" \
 
 # restore directory
 popd
