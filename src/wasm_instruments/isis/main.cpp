@@ -14,6 +14,60 @@
 #include <iconv.h>
 #endif
 
+// TODO: look into splitting up into 3 separate structs?
+struct IsisVariableStruct {
+    // Unit types
+    ENUM number;
+    ENUM boolean;
+    ENUM degrees;
+    ENUM feet;
+    ENUM knots;
+    ENUM mach;
+    ENUM millibars;
+    ENUM inHg;
+    ENUM gforce;
+    // Simvars/Localvars
+    ENUM pitch;
+    ENUM bank;
+    ENUM altitude;
+    ENUM ias;
+    ENUM mach;
+    ENUM baroMode;
+    ENUM hpaQNH;
+    ENUM inhgQNH;
+    ENUM mda;
+    ENUM glideslopeAvailable;
+    ENUM glideslopeDeviation;
+    ENUM localizerAvailable;
+    ENUM localizerDeviation;
+    ENUM isColdAndDark;
+    ENUM dcEssLive;
+    ENUM dcHotLive;
+    // Fonts
+    int primaryFont;
+};
+
+// Temporary: imported list of variables used in React ISIS
+// useSimVar('PLANE PITCH DEGREES', 'degrees', 200)
+// useSimVar('PLANE BANK DEGREES', 'degrees', 200)
+// const [alt] = useSimVar('INDICATED ALTITUDE:2', 'feet');
+// const [mda] = useSimVar('L:AIRLINER_MINIMUM_DESCENT_ALTITUDE', 'feet');
+// const [ias] = useSimVar('AIRSPEED INDICATED', 'knots', 200);
+// const [isColdAndDark] = useSimVar('L:A32NX_COLD_AND_DARK_SPAWN', 'Bool', 200);
+// const [dcEssLive] = useSimVar('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED', 'bool');
+// const [dcHotLive] = useSimVar('L:A32NX_ELEC_DC_HOT_1_BUS_IS_POWERED', 'bool');
+// const [gsDeviation] = useSimVar('NAV GLIDE SLOPE ERROR:3', 'degrees');
+// const [gsAvailable] = useSimVar('NAV HAS GLIDE SLOPE:3', 'bool');
+// const [lsDeviation] = useSimVar('NAV RADIAL ERROR:3', 'degrees');
+// const [lsAvailable] = useSimVar('NAV HAS LOCALIZER:3', 'bool');
+// const [mach] = useSimVar('AIRSPEED MACH', 'mach');
+// const [baroMode] = useSimVar('L:A32NX_ISIS_BARO_MODE', 'enum');
+// const [hpaQnh] = useSimVar('A:KOHLSMAN SETTING MB:2', 'millibars');
+// const [inHgQnh] = useSimVar('A:KOHLSMAN SETTING MB:2', 'inHg');
+// const [latAcc] = useSimVar('ACCELERATION BODY X', 'G Force', 500); <- for sideslip
+// TODO: bugs and auto-brightness vars
+
+IsisVariableStruct isisVariables;
 std::map <FsContext, NVGcontext*> IsisNVGContext;
 
 extern "C" {
@@ -21,21 +75,70 @@ extern "C" {
         switch(service_id) {
             case PANEL_SERVICE_PRE_INSTALL:
             {
+                // Register unit types
+                isisVariables.number = get_units_enum("NUMBER");
+                isisVariables.boolean = get_units_enum("BOOL");
+                isisVariables.degrees = get_units_enum("DEGREES");
+                isisVariables.feet = get_units_enum("FEET");
+                isisVariables.knots = get_units_enum("KNOTS");
+                isisVariables.mach = get_units_enum("MACH");
+                isisVariables.millibars = get_units_enum("MILLIBARS");
+                isisVariables.inHg = get_units_enum("INHG");
+                isisVariables.gforce = get_units_enum("G FORCE");
+
+                // Register variables
+                isisVariables.pitch = get_aircraft_var_enum("PLANE PITCH DEGREES");
+                isisVariables.bank = get_aircraft_var_enum("PLANE BANK DEGREES");
+                isisVariables.altitude = get_aircraft_var_enum("INDICATED ALTITUDE:2");
+                isisVariables.ias = get_aircraft_var_enum("AIRSPEED INDICATED");
+                // TODO: more variables
                 return true;
             }
             break;
             case PANEL_SERVICE_POST_INSTALL:
             {
+                NVGparams params;
+                params.userPtr = ctx;
+                params.edgeAntiAlias = true;
+                IsisNVGContext[ctx] = nvgCreateInternal(&params);
+                NVGcontext* nvgctx = IsisNVGContext[ctx];
+                // TODO: register font
                 return true;
             }
             break;
             case PANEL_SERVICE_PRE_DRAW:
             {
+                sGaugeDrawData* p_draw_data = (sGaugeDrawData*)pData;
+
+                // Fetch variables
+                FLOAT64 pitch = aircraft_varget(isisVariables.pitch, isisVariables.degrees, 0);
+                FLOAT64 bank = aircraft_varget(isisVariables.bank, isisVariables.degrees, 0);
+                FLOAT64 altitude = aircraft_varget(isisVariables.altitude, isisVariables.feet, 0);
+                FLOAT64 ias = aircraft_varget(isisVariables.ias, isisVariables.knots, 0);
+                // TODO: more variables
+
+                // Draw
+                float fsize = 0; // TODO: figure out what this is for?
+                float pxRatio = (float)p_draw_data->fbWidth / (float)p_draw_data->winWidth;
+                NVGcontext* nvgctx = IsisNVGContext[ctx];
+                nvgBeginFrame(nvgctx, p_draw_data->winWidth, p_draw_data->winHeight, pxRatio);
+                {
+                    // Placeholder drawing
+                    nvgTranslate(nvgctx, p_draw_data->winWidth * 0.5f, p_draw_data->winHeight * 0.5f);
+                    nvgFillColor(nvgctx, nvgRGB(255, 255, 0));
+                    nvgBeginPath(nvgctx);
+                    nvgCircle(nvgctx, 0, 0, p_draw_data->winWidth * 0.01f);
+                    nvgFill(nvgctx);
+                }
+                nvgEndFrame(nvgctx);
                 return true;
             }
             break;
             case PANEL_SERVICE_PRE_KILL:
             {
+                NVGcontext* nvgctx = IsisNVGContext[ctx];
+                nvgDeleteInternal(nvgctx);
+                IsisNVGContext.erase(ctx);
                 return true;
             }
             break;

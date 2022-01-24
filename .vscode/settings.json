@@ -45,7 +45,21 @@
   },
   "cmake.configureOnOpen": false,
   "files.associations": {
-    "memory": "cpp"
+    "memory": "cpp",
+    "__functional_base": "cpp",
+    "array": "cpp",
+    "istream": "cpp",
+    "locale": "cpp",
+    "tuple": "cpp",
+    "utility": "cpp",
+    "variant": "cpp",
+    "type_traits": "cpp",
+    "xlocmes": "cpp",
+    "xlocmon": "cpp",
+    "xlocnum": "cpp",
+    "xloctime": "cpp",
+    "xutility": "cpp",
+    "map": "cpp"
   },
   "typescript.preferences.quoteStyle": "single",
   "typescript.preferences.importModuleSpecifier": "non-relative"
