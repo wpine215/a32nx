@@ -43,6 +43,7 @@ struct IsisVariableStruct {
     ENUM isColdAndDark;
     ENUM dcEssLive;
     ENUM dcHotLive;
+
     // Fonts
     int primaryFont;
 };
@@ -75,6 +76,8 @@ extern "C" {
         switch(service_id) {
             case PANEL_SERVICE_PRE_INSTALL:
             {
+                sGaugeInstallData* p_install_data = (sGaugeInstallData*)pData;
+
                 // Register unit types
                 isisVariables.t_enum = get_units_enum("ENUM");
                 isisVariables.t_bool = get_units_enum("BOOL");
@@ -102,7 +105,7 @@ extern "C" {
                 params.edgeAntiAlias = true;
                 IsisNVGContext[ctx] = nvgCreateInternal(&params);
                 NVGcontext* nvgctx = IsisNVGContext[ctx];
-                // TODO: register font
+                isisVariables.primaryFont = nvgCreateFont(nvgctx, "sans", "./html_ui/Fonts/ECAMFontRegular.ttf");
                 return true;
             }
             break;

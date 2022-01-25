@@ -38,6 +38,7 @@ clang++ \
   -fvisibility=hidden \
   -I "${MSFS_SDK}/WASM/include" \
   -I "${MSFS_SDK}/SimConnect SDK/include" \
+  "${MSFS_SDK}/WASM/src/MSFS/Render/nanovg.cpp" \
   -I "${DIR}/isis" \
   "${DIR}/isis/main.cpp" \
 
